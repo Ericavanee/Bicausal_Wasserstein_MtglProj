@@ -48,7 +48,7 @@ def markov_coupling(T, rho, u_list):
         vec2 = []
 
         for u in u_list:
-            vec1.append(u(samples[i]))
+            vec1.append(samples[i])
             vec2.append(u(samples[i+1]))
 
         X.append(vec1)
