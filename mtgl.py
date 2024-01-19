@@ -9,6 +9,11 @@ def cutoff(result, conf):
     print(f"cutoff value: {percentile_cutoff}")
     return percentile_cutoff
 
+def get_bounds(domain, d):
+    lbd, ubd = domain
+    bounds = [(lbd, ubd) for _ in range(d)]
+    return bounds
+
 # Part 2: mtgl test
 
 def kernel(rho, sigma, x):
@@ -34,13 +39,14 @@ def integrand(vars,params):
     n = len(x)
     sum_ls = []
     for i in range(n):
-        sum_ls.append(np.multiply(y[i]-x[i],kernel(rho,sigma,a-x[i])))
+        sum_ls.append(np.multiply(y[i]-x[i],kernel(rho,sigma,x-x[i])))
     integrand = (1/n)*np.linalg.norm(sum(sum_ls))
     return integrand
 
 
 def mtgl_proj(params,lbd,ubd):
     warnings.simplefilter("ignore")
+    x = params['x']
     try:
         d=len(x[0])
     except:
@@ -57,6 +63,7 @@ def mtgl_proj(params,lbd,ubd):
 
 def mtgl_test(params,lbd,ubd,conf,result):
     bond = cutoff(result,conf)
+    x = params['x']
     n = len(x)
     proj = np.sqrt(n)*mtgl_proj(params,lbd,ubd)
     if proj <= bond:
