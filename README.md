@@ -1,5 +1,5 @@
 # Bicausal Wasserstein Martingale Projection
-The Bi-causal Wasserstein Martingale projection is a novel method for multi-dimensional martingale tests on data couplings. To the best of our knowledge, it is the first **consistent** test for the high-dimensional regime.
+The *bicausal* or *adapted* Wasserstein martingale projection is a novel method for multi-dimensional martingale tests on data couplings. To the best of our knowledge, it is the first **consistent** test for the high-dimensional regime.
 
 🔗 Paper link: [Empirical martingale projections via the adapted Wasserstein distance](https://arxiv.org/pdf/2401.12197)
 
