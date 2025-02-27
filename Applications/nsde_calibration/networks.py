@@ -1,3 +1,7 @@
+"""
+Forked from https://github.com/msabvid/robust_nsde.
+"""
+
 import torch
 import torch.nn as nn
 
