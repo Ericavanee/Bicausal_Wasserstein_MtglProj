@@ -1,5 +1,6 @@
 '''
-We adapt the codes in paper "Robust pricing and hedging via neural SDEs" (https://arxiv.org/abs/2007.04154) by Gierjatowicz et. al. to conduct our own testing. 
+We adapt the codes in paper "Robust pricing and hedging via neural SDEs" (https://arxiv.org/abs/2007.04154) by Gierjatowicz et. al. to conduct our own testing.
+This script in particular implements the local stochastic volatility (LSV) model calibration to vanilla option prices.
 '''
 
 import sys
@@ -19,7 +20,7 @@ import copy
 import argparse
 import random
 
-from networks import *
+from applications.networks import *
 
 
 class Net_LSV(nn.Module):
