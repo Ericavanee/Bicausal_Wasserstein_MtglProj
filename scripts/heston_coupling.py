@@ -55,8 +55,16 @@ if __name__ == "__main__":
         inner_itr=args.inner_itr
     )
 
+    # Ensure save directory exists
+    save_dir = os.path.dirname(args.save_path)
+    if save_dir and not os.path.exists(save_dir):
+        os.makedirs(save_dir, exist_ok=True)
+
     # Save results
     with open(args.save_path, 'wb') as f:
         pkl.dump({"mat_ls": mat_ls, "vanilla_payoff_ls": vanilla_payoff_ls}, f)
 
     print(f"Results saved to {args.save_path}.")
+
+# Run the script with the following command:
+# python scripts/heston_coupling.py --strikes_call 100,110,120 --maturities 0.5,1 --outer_itr 5 --inner_itr 10 --save_path demos/results/heston_coupling.pkl

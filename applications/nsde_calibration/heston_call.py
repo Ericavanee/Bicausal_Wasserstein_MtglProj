@@ -4,6 +4,7 @@ This script implements stock price simulations based on the Heston model and com
 
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 class HestonModel:
     """
@@ -262,7 +263,7 @@ class HestonModel:
             sum_conditional_exotic = 0.0
 
             # For each outer path i, do an inner pass
-            for i in range(outer_itr):
+            for i in tqdm(range(outer_itr), desc=f"Pricing for T={T}", leave=True):
                 # Start from S_j[i], V_j[i]
                 stock_inner, var_inner, max_inner = self.Heston_stock_from_state(
                     S0 = S_j[i],
@@ -311,8 +312,8 @@ class HestonModel:
         # generate timegrid given time steps.
         timegrid = np.linspace(0,1,self.timesteps+1)
         
-        # record the last maturity as ind_T.
-        ind_T = maturities[-1]
+        # record the last maturity in terms of total time steps as ind_T.
+        ind_T = int(maturities[-1]*self.timesteps)
 
         # 1) generate outer MC (calibrated MC)
         outer_stock, outer_var, _ = self.Heston_stock(itr=outer_itr) # shapes => (outer_itr, j_idx+1)
@@ -321,19 +322,19 @@ class HestonModel:
         # structure: mat_ls[maturity_i_index][outer_itr, len(strikes_call), num_time_steps_up_to_maturity_i]
         mat_ls = []
         for i in range(len(maturities)):
-            mat_ls.append(np.zeros((outer_itr,len(strikes_call),maturities[i])))
+            mat_ls.append(np.zeros((outer_itr,len(strikes_call),int(maturities[i]*self.timesteps))))
             
 
-        for i in range(outer_itr):
+        for i in tqdm(range(outer_itr), desc="Running Outer Monte Carlo", leave=True):
             traj = outer_stock[i] 
             # iterate through each time step up to the final maturity date ind_T
             for j in range(0, ind_T):
                 # generate inner monte carlo trials based on real parameters
                 inner_steps = ind_T-j
-                # Start from outer_stock[i], outer_var[i]
+                # Start from outer_stock[i,j], outer_var[i,j]
                 inner_stock, _inner_var, _ = self.Heston_stock_from_state(
-                    S0 = outer_stock[i],
-                    V0 = outer_var[i],
+                    S0 = outer_stock[i,j],
+                    V0 = outer_var[i,j],
                     itr=inner_itr,
                     timesteps=inner_steps
                 )
@@ -343,8 +344,9 @@ class HestonModel:
                     if j < maturities[k]: 
                         my_mat = maturities[k] # current maturity date T
                         S_T = inner_stock[:, -1] # get S_T for all inner paths, => shape (inner_itr,)
+                        current_time = j/self.timesteps
                         for idx, strike in enumerate(strikes_call):
-                            price_vanilla = np.exp(-self.r*(my_mat-j))*np.clip(np.array(S_T-strike),0, np.inf) # correct discounting with exp(-r*(T-t)).
+                            price_vanilla = np.exp(-self.r*(my_mat-current_time))*np.clip(np.array(S_T-strike),0, np.inf) # correct discounting with exp(-r*(T-t)).
                             # => shape (inner_itr,)
                             # for each maturity and at each time step
                             mat_ls[k][i,idx,j] = price_vanilla.mean() # taking the mean of the inner paths.
@@ -355,58 +357,97 @@ class HestonModel:
         for i in range(len(maturities)):
             vanilla_payoff = np.zeros((outer_itr, len(strikes_call)))
             for idx, strike in enumerate(strikes_call):
-                vanilla_payoff[:,idx] = np.exp(-self.r*my_mat)*np.clip(outer_stock.T[maturities[i]]-strike,0,np.inf)
+                vanilla_payoff[:,idx] = np.exp(-self.r*my_mat)*np.clip(outer_stock.T[int(maturities[i]*self.timesteps)]-strike,0,np.inf)
             vanilla_payoff_ls.append(vanilla_payoff)
 
         return mat_ls, vanilla_payoff_ls
+    
+    def plot_vanilla_prices(self, maturities, strikes, price1, price2=None, title="Vanilla Option Prices"):
+        """
+        Plots vanilla option prices for given maturities and strikes.
+
+        Parameters
+        ----------
+        maturities : array-like
+            List or array of option maturities.
+        strikes : array-like
+            List or array of strike prices.
+        price1 : ndarray, shape (n_maturities, n_strikes)
+            Option prices from either nested Monte Carlo or direct payoff calculation.
+        price2 : ndarray, shape (n_maturities, n_strikes), optional
+            Second set of option prices (e.g., from direct payoff calculations in `price_payoff_coupling`).
+        title : str, optional
+            Title of the plot.
+
+        Notes
+        -----
+        - If `price2` is provided, it plots both datasets for comparison.
+        - Uses `scatter` + `line` plots for better visibility.
+        """
+        maturities = np.array(maturities)
+        strikes = np.array(strikes)
+
+        # Iterate through maturities to plot prices at each strike
+        for i, T in enumerate(maturities):
+            plt.plot(strikes, price1[i, :], label=f"Nested MC (T={T:.2f})", marker='o', linestyle='-')
+
+            # If second price matrix exists, plot it too
+            if price2 is not None:
+                plt.plot(strikes, price2[i, :], label=f"Payoff (T={T:.2f})", marker='x', linestyle='--')
+
+        plt.xlabel("Strike Price")
+        plt.ylabel("Option Price")
+        plt.title(title)
+        plt.legend()
+        plt.grid(True)
+        plt.show()
 
 
+# if __name__ == "__main__":
+#     # Instantiate the Heston Model
+#     heston = HestonModel(
+#         x0=100,  # Initial stock price
+#         r=0.02,  # Risk-free rate
+#         V0=0.04, # Initial variance
+#         kappa=0.5, mu=0.04, eta=0.3, rho=-0.5, # Heston parameters
+#         dt=1/252, timesteps=252,  # 252 trading days per year
+#         seed=42  # Fixing seed for reproducibility
+#     )
 
-if __name__ == "__main__":
-    # Instantiate the Heston Model
-    heston = HestonModel(
-        x0=100,  # Initial stock price
-        r=0.02,  # Risk-free rate
-        V0=0.04, # Initial variance
-        kappa=0.5, mu=0.04, eta=0.3, rho=-0.5, # Heston parameters
-        dt=1/252, timesteps=252,  # 252 trading days per year
-        seed=42  # Fixing seed for reproducibility
-    )
+#     # Simulate stock price paths
+#     n_paths = 5  # Number of paths to plot
+#     stock_paths, var_paths, running_max = heston.Heston_stock(itr=n_paths)
 
-    # Simulate stock price paths
-    n_paths = 5  # Number of paths to plot
-    stock_paths, var_paths, running_max = heston.Heston_stock(itr=n_paths)
+#     # Plot the first few simulated stock paths
+#     heston.plot_paths(stock_paths)
 
-    # Plot the first few simulated stock paths
-    heston.plot_paths(stock_paths)
+#     # Define strike prices and maturities for option pricing
+#     strike_prices = np.array([90, 100, 110])  # ATM, ITM, OTM
+#     maturities = np.array([0.5, 1.0])  # 6 months, 1 year
 
-    # Define strike prices and maturities for option pricing
-    strike_prices = np.array([90, 100, 110])  # ATM, ITM, OTM
-    maturities = np.array([0.5, 1.0])  # 6 months, 1 year
+#     # Price vanilla and exotic options using nested Monte Carlo
+#     vanilla_prices, exotic_prices = heston.price_option_for_t(
+#         strikes_call=strike_prices, 
+#         maturities_in_years=maturities, 
+#         t_in_years=0.25,  # Pricing at 3 months in
+#         outer_itr=500, inner_itr=1000
+#     )
 
-    # Price vanilla and exotic options using nested Monte Carlo
-    vanilla_prices, exotic_prices = heston.price_option_for_t(
-        strikes_call=strike_prices, 
-        maturities_in_years=maturities, 
-        t_in_years=0.25,  # Pricing at 3 months in
-        outer_itr=500, inner_itr=1000
-    )
+#     # Print the results
+#     print("Vanilla Call Option Prices (rows: maturities, columns: strikes):")
+#     print(vanilla_prices)
 
-    # Print the results
-    print("Vanilla Call Option Prices (rows: maturities, columns: strikes):")
-    print(vanilla_prices)
+#     print("\nExotic Option Prices (maturities):")
+#     print(exotic_prices)
 
-    print("\nExotic Option Prices (maturities):")
-    print(exotic_prices)
+#     # Perform martingale test using price-payoff coupling
+#     mat_ls, vanilla_payoff_ls = heston.price_payoff_coupling(
+#         strikes_call=strike_prices,
+#         maturities=maturities,
+#         outer_itr=100,
+#         inner_itr=200
+#     )
 
-    # Perform martingale test using price-payoff coupling
-    mat_ls, vanilla_payoff_ls = heston.price_payoff_coupling(
-        strikes_call=strike_prices,
-        maturities=maturities,
-        outer_itr=100,
-        inner_itr=200
-    )
-
-    # Print one example result
-    print("\nPrice-Payoff Coupling for First Maturity and Strike (Outer Path 0, First Time Step):")
-    print(mat_ls[0][0, 0, 0], " vs. ", vanilla_payoff_ls[0][0, 0])
+#     # Print one example result
+#     print("\nPrice-Payoff Coupling for First Maturity and Strike (Outer Path 0, First Time Step):")
+#     print(mat_ls[0][0, 0, 0], " vs. ", vanilla_payoff_ls[0][0, 0])
