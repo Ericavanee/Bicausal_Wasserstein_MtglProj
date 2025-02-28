@@ -1,5 +1,5 @@
 """
-Stores Heston model parameters.
+Stores object parameters.
 """
 
 import sys
@@ -18,4 +18,14 @@ class HestonParams:
     dt: float = field(default=1/96, metadata={"help": "Time-step size in years."})
     timesteps: int = field(default=96, metadata={"help": "Number of time steps in the simulation."})
     seed: int = field(default=42, metadata={"help": "Random seed for reproducibility."})
+
+class NsdeParams:
+    device: int = field(default=0, metadata={"help": "Device index for CUDA (0 for first GPU)."})
+    n_layers: int = field(default=4, metadata={"help": "Number of layers in the neural SDE network."})
+    vNetWidth: int = field(default=50, metadata={"help": "Width of the neural network."})
+    experiment: int = field(default=0, metadata={"help": "Experiment index."})
+    batch_size: int = field(default=4000, metadata={"help": "Batch size for training."})
+    n_epochs: int = field(default=100, metadata={"help": "Number of training epochs."})
+    MC_samples_test: int = field(default=1000, metadata={"help": "Number of Monte Carlo test samples."})
+    save_path: str = field(default="data/stock_traj_LSV.txt", metadata={"help": "Path to save stock price trajectories."})
 
