@@ -291,7 +291,7 @@ class HestonModel:
         return vanilla_prices, exotic_prices
     
 
-    def price_payoff_coupling(self, strikes_call, maturities, outer_itr = 10, inner_itr = 10):
+    def price_payoff_coupling(self, strikes_call, maturities, outer_itr = 10, inner_itr = 10): #TODO: modify this to take in custom (calibrated) outer trajectory with x.
         """
         Return coupling of price of vanilla options using nested MC and payoff calculated directly by conditioning on S0.
         This is to be passed to directly conduct the martingale test.
