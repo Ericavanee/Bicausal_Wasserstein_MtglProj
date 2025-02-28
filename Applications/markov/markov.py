@@ -1,6 +1,6 @@
-from mtgl import *
-from multiD import *
-from bdd_fun import *
+from src.adapted_mtgl.mtgl_test.mtgl import *
+from src.adapted_mtgl.mtgl_test.multiD import *
+from applications.markov.bdd_fun import *
 
 # This package provides functions that implement Section 6.2 of the paper.
 

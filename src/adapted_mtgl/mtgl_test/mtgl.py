@@ -1,6 +1,6 @@
 import warnings
-from test_cases import *
-from multiD import *
+from src.adapted_mtgl.simulation.test_cases import *
+from src.adapted_mtgl.mtgl_test.multiD import *
 
 # MultiD Martingale test for gamma = 1
 
