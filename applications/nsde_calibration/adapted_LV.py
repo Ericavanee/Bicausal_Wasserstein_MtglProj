@@ -24,90 +24,103 @@ import random
 from applications.nsde_calibration.networks import *
 
 
-class Net_LV(nn.Module):
+def forward(self, S0, z, MC_samples, ind_T, period_length=30):
     """
-    Calibration of LV model: dS_t = S_t*r*dt + L(t,S_t,theta)dW_t to vanilla prices at different maturities
+    Computes stock paths and variance paths under a Local Volatility (LV) model.
+
+    Parameters
+    ----------
+    S0 : Tensor
+        Initial stock price (batch size, 1)
+    z : Tensor
+        Brownian motion samples of shape (MC_samples, timesteps)
+    MC_samples : int
+        Number of Monte Carlo samples
+    ind_T : int
+        Index of the final time step to simulate
+    period_length : int, optional
+        Period length for control variates (default is 30)
+
+    Returns
+    -------
+    path : Tensor
+        Simulated stock price paths (MC_samples, timegrid steps)
+    var_path : Tensor
+        Variance paths (MC_samples, timegrid steps)
+    diffusion : Tensor
+        Final diffusion term \( \sigma(S, t) \)
+    price_vanilla_cv : Tensor
+        Vanilla option prices using control variates
+    var_price_vanilla_cv : Tensor
+        Variance of vanilla option prices
+    exotic_option_price : Tensor
+        Exotic option prices
+    exotic_option_price.mean() : float
+        Mean exotic option price
+    exotic_option_price.var() : float
+        Variance of exotic option price
+    error : Tensor
+        Pricing error based on control variates
     """
 
-    def __init__(self, dim, timegrid, strikes_call, n_layers, vNetWidth, device, rate, maturities, n_maturities):
+    ones = torch.ones(MC_samples, 1, device=self.device)
+    path = torch.zeros(MC_samples, len(self.timegrid), device=self.device)  # Stock paths
+    var_path = torch.zeros(MC_samples, len(self.timegrid), device=self.device)  # Variance paths
 
-        super(Net_LV, self).__init__()
-        self.dim = dim
-        self.timegrid = timegrid
-        self.device = device
-        self.strikes_call = strikes_call
-        self.maturities = maturities
-        self.rate = rate
+    S_old = ones * S0
+    path[:, 0] = S_old.squeeze(1)
 
-        # Leverage function
-        self.diffusion = Net_timegrid(dim=dim + 1, nOut=1, n_layers=n_layers, vNetWidth=vNetWidth,
-                                      n_maturities=n_maturities, activation_output="softplus")
+    # Initial variance from LV model (computed as σ²)
+    diffusion = self.diffusion.forward_idx(0, torch.cat([torch.zeros_like(S_old), S_old], 1))
+    var_path[:, 0] = diffusion.detach().squeeze(1) ** 2  # Store variance as σ²(S,t)
 
-        # Control Variates
-        self.control_variate_vanilla = Net_timegrid(dim=dim + 1, nOut=len(strikes_call) * n_maturities, n_layers=3,
-                                                    vNetWidth=30, n_maturities=n_maturities)
-        self.control_variate_exotics = Net_timegrid(dim=dim * len(self.timegrid) + 1, nOut=1, n_layers=3, vNetWidth=20,
-                                                    n_maturities=n_maturities)
+    running_max = S_old  # Track max stock price for exotic options
 
-    def forward(self, S0, z, MC_samples, ind_T, period_length=30):
-        """this is to be used for evaluation so that everything fits into memory
-        """
-        # S_old = torch.repeat_interleave(S0, MC_samples, dim=0)
-        ones = torch.ones(MC_samples, 1, device=self.device)
-        path = torch.zeros(MC_samples, len(self.timegrid), device=self.device)
-        S_old = ones * S0
-        path[:, 0] = S_old.squeeze(1)
+    cv_vanilla = torch.zeros(S_old.shape[0], len(self.strikes_call) * len(self.maturities), device=self.device)
+    price_vanilla_cv = torch.zeros(len(self.maturities), len(self.strikes_call), device=self.device)
+    var_price_vanilla_cv = torch.zeros_like(price_vanilla_cv)
 
-        cv_vanilla = torch.zeros(S_old.shape[0], len(self.strikes_call) * len(self.maturities), device=self.device)
-        price_vanilla_cv = torch.zeros(len(self.maturities), len(self.strikes_call), device=self.device)
-        var_price_vanilla_cv = torch.zeros_like(price_vanilla_cv)
+    cv_exotics = torch.zeros(S_old.shape[0], 1, device=self.device)
+    exotic_option_price = torch.zeros_like(S_old)
 
-        cv_exotics = torch.zeros(S_old.shape[0], 1, device=self.device)
+    for i in range(1, ind_T + 1):
+        idx = (i - 1) // period_length
+        t = torch.ones_like(S_old) * self.timegrid[i - 1]
+        h = self.timegrid[i] - self.timegrid[i - 1]
+        dW = (torch.sqrt(h) * z[:, i - 1]).reshape(MC_samples, 1)
 
-        exotic_option_price = torch.zeros_like(S_old)
+        # Compute local volatility from NN
+        diffusion = self.diffusion.forward_idx(idx, torch.cat([t, S_old], 1))  # σ(S,t)
+        V_new = diffusion ** 2  # Define variance as σ²(S,t)
 
-        # we keep a running_max for Lookback option
-        running_max = S_old
+        # Update stock price using Euler scheme
+        S_new = S_old + self.rate * S_old * h / (
+                1 + self.rate * S_old.detach() * torch.sqrt(h)) + S_old * diffusion * dW / (
+                1 + S_old.detach() * diffusion.detach() * torch.sqrt(h))
 
-        # Solve for S_t (Euler)
-        for i in range(1, ind_T + 1):
-            idx = (i - 1) // period_length  # assume maturities are evenly distributed
-            t = torch.ones_like(S_old) * self.timegrid[i - 1]
-            h = self.timegrid[i] - self.timegrid[i - 1]
-            dW = (torch.sqrt(h) * z[:, i - 1]).reshape(MC_samples, 1)
+        path[:, i] = S_new.detach().squeeze(1)
+        var_path[:, i] = V_new.detach().squeeze(1)  # Store computed variance
 
-            current_time = ones * self.timegrid[i - 1]
-            diffusion = self.diffusion.forward_idx(idx, torch.cat([t, S_old], 1))
-            S_new = S_old + self.rate * S_old * h / (
-                        1 + self.rate * S_old.detach() * torch.sqrt(h)) + S_old * diffusion * dW / (
-                                1 + S_old.detach() * diffusion.detach() * torch.sqrt(h))
+        running_max = torch.max(running_max, S_old)
+        S_old = S_new
 
-            cv_vanilla += torch.exp(-self.rate * self.timegrid[
-                i - 1]) * S_old.detach() * diffusion.detach() * self.control_variate_vanilla.forward_idx(idx, torch.cat(
-                [t, S_old.detach()], 1)) * dW.repeat(1, len(self.strikes_call) * len(self.maturities))
-            cv_exotics += torch.exp(-self.rate * self.timegrid[
-                i - 1]) * S_old.detach() * diffusion.detach() * self.control_variate_exotics.forward_idx(idx, torch.cat(
-                [t, path], 1)) * dW
-            S_old = S_new
-            path[:, i] = S_old.detach().squeeze(1)
+        if i in self.maturities:
+            ind_maturity = self.maturities.index(i)
+            for idx, strike in enumerate(self.strikes_call):
+                cv = cv_vanilla.view(-1, len(self.maturities), len(self.strikes_call))
+                price_vanilla = torch.exp(-self.rate * self.timegrid[i]) * torch.clamp(S_old - strike, 0).squeeze(
+                    1) - cv[:, ind_maturity, idx]
+                price_vanilla_cv[ind_maturity, idx] = price_vanilla.mean()
+                var_price_vanilla_cv[ind_maturity, idx] = price_vanilla.var()
 
-            running_max = torch.max(running_max, S_old)
-            if i in self.maturities:
-                ind_maturity = self.maturities.index(i)
-                for idx, strike in enumerate(self.strikes_call):
-                    cv = cv_vanilla.view(-1, len(self.maturities), len(self.strikes_call))
-                    price_vanilla = torch.exp(-self.rate * self.timegrid[i]) * torch.clamp(S_old - strike, 0).squeeze(
-                        1) - cv[:, ind_maturity, idx]
-                    price_vanilla_cv[ind_maturity, idx] = price_vanilla.mean()  # torch.exp(-rate/n_steps)*price.mean()
-                    var_price_vanilla_cv[ind_maturity, idx] = price_vanilla.var()
+    exotic_option_price = running_max - S_old
+    error = torch.exp(-self.rate * self.timegrid[ind_T]) * exotic_option_price.detach() - torch.mean(
+        torch.exp(-self.rate * self.timegrid[ind_T]) * exotic_option_price.detach()) - cv_exotics.detach()
+    exotic_option_price = torch.exp(-self.rate * self.timegrid[ind_T]) * exotic_option_price - cv_exotics
 
-        exotic_option_price = running_max - S_old
-        error = torch.exp(-self.rate * self.timegrid[ind_T]) * exotic_option_price.detach() - torch.mean(
-            torch.exp(-self.rate * self.timegrid[ind_T]) * exotic_option_price.detach()) - cv_exotics.detach()
-        exotic_option_price = torch.exp(-self.rate * self.timegrid[ind_T]) * exotic_option_price - cv_exotics
+    # Return both stock path and variance path
+    return path, var_path, diffusion.detach(), price_vanilla_cv, var_price_vanilla_cv, exotic_option_price, exotic_option_price.mean(), exotic_option_price.var(), error
 
-        # altered: return stock path and diffusion for the LV model
-        return path, diffusion.detach(), price_vanilla_cv, var_price_vanilla_cv, exotic_option_price, exotic_option_price.mean(), exotic_option_price.var(), error
 
 
 def init_weights(m):

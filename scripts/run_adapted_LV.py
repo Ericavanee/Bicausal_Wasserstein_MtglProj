@@ -82,7 +82,7 @@ if __name__ == "__main__":
     period_length = 16
     batch_z = torch.randn(batch_size, n_steps, device=device)
     T = max(maturities)
-    path, diffusion, _, _, _, _, _ = best_model(S0, batch_z, batch_size, T, period_length)
+    stock_path, var_path, diffusion, _, _, _, _, _ = best_model(S0, batch_z, batch_size, T, period_length)
 
     # Ensure save directory exists
     save_dir = os.path.dirname(args.save_path)
@@ -92,9 +92,11 @@ if __name__ == "__main__":
     # Save stock price trajectory and diffusion parameters
     stock_save_path = "data/stock_traj_LV.txt"
     diffusion_save_path = "data/LV_diffusion.txt"
+    var_save_path = "data/var_traj_LV.txt"
 
     print(f"Saving stock price trajectory to {stock_save_path} and diffusion parameters to {diffusion_save_path}.")
-    np.savetxt(stock_save_path, path.cpu().numpy())
+    np.savetxt(stock_save_path, stock_path.cpu().numpy())
     np.savetxt(diffusion_save_path, diffusion.cpu().numpy())
+    np.savetxt(var_save_path, var_path.cpu().numpy())
 
     print("Run completed successfully.")
