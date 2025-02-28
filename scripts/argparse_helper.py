@@ -27,5 +27,5 @@ class NsdeParams:
     batch_size: int = field(default=4000, metadata={"help": "Batch size for training."})
     n_epochs: int = field(default=100, metadata={"help": "Number of training epochs."})
     MC_samples_test: int = field(default=1000, metadata={"help": "Number of Monte Carlo test samples."})
-    save_path: str = field(default="data/stock_traj_LSV.txt", metadata={"help": "Path to save stock price trajectories."})
+    save_dir: str = field(default="data/", metadata={"help": "Directory to save stock price trajectories."})
 

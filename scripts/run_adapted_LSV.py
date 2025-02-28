@@ -26,8 +26,8 @@ if __name__ == "__main__":
         device = "cpu"
 
     # Load market prices
-    data = torch.load("Call_prices_59.pt")
-    print("Loading data from Call_prices_59.pt.")
+    data = torch.load("data/Call_prices_59.pt")
+    print("Loading data from data/Call_prices_59.pt.")
     print(f"Data Shape: {data.shape}")
 
     # Set up training - Strike values, time discretisation, and maturities
@@ -60,7 +60,8 @@ if __name__ == "__main__":
     z_test = torch.cat([z_test, -z_test], 0)  # Antithetic Brownian paths
 
     # Logging file
-    with open("error_hedge.txt", "w") as f:
+    error_path = os.path.join(args.save_dir, "error_hedge_LSV.txt")
+    with open(error_path, "w") as f:
         f.write("epoch,error_hedge_2,error_hedge_inf\n")
 
     # Training Configuration
@@ -83,15 +84,19 @@ if __name__ == "__main__":
     period_length = 16
     batch_z = torch.randn(batch_size, n_steps, device=device)
     T = max(maturities)
-    path, _, _, _, _, _, _ = best_model(S0, batch_z, batch_size, T, period_length)
+    path, var_path, _, _, _, _, _ = best_model(S0, batch_z, batch_size, T, period_length)
 
     # Ensure save directory exists
-    save_dir = os.path.dirname(args.save_path)
+    save_path = os.path.join(args.save_dir, "stock_traj_LSV.txt")
+    save_var_path = os.path.join(args.save_dir, "var_traj_LSV.txt")
+    save_dir = os.path.dirname(args.save_dir)
     if save_dir and not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
 
     # Save stock price trajectory
+    np.savetxt(save_path, path.cpu().numpy())
     print(f"Saving stock price trajectory to file {args.save_path}...")
-    np.savetxt(args.save_path, path.cpu().numpy())
+    np.savetxt(save_var_path, var_path.cpu().numpy())
+    print(f"Saving stock variance trajectory to file {args.save_var_path}...")
 
     print("Run completed successfully.")

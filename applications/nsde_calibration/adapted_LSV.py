@@ -54,52 +54,120 @@ class Net_LSV(nn.Module):
                                                     vNetWidth=20, n_maturities=n_maturities)
 
     def forward(self, S0, z, MC_samples, ind_T, period_length=30):
-        """this is to be used for evaluation so that everything fits into memory
         """
+        Computes stock paths and variance paths under a Local Stochastic Volatility (LSV) model.
+
+        Parameters
+        ----------
+        S0 : Tensor
+            Initial stock price (batch size, 1)
+        z : Tensor
+            Brownian motion samples of shape (MC_samples, timesteps)
+        MC_samples : int
+            Number of Monte Carlo samples
+        ind_T : int
+            Index of the final time step to simulate
+        period_length : int, optional
+            Period length for control variates (default is 30)
+
+        Returns
+        -------
+        path : Tensor
+            Simulated stock price paths (MC_samples, timegrid steps)
+        var_path : Tensor
+            Variance paths (MC_samples, timegrid steps)
+        diffusion : Tensor
+            Final diffusion term \( \sigma(S, V, t) \)
+        price_vanilla_cv : Tensor
+            Vanilla option prices using control variates
+        var_price_vanilla_cv : Tensor
+            Variance of vanilla option prices
+        exotic_option_price : Tensor
+            Exotic option prices
+        exotic_option_price.mean() : float
+            Mean exotic option price
+        exotic_option_price.var() : float
+            Variance of exotic option price
+        error : Tensor
+            Pricing error based on control variates
+        Notes
+        -----
+        This function implements the **Euler-Maruyama discretization scheme** for the LSV model:
+
+        - The stock price process:
+        \[
+        dS_t = S_t r dt + S_t \sigma(S_t, V_t, t) dW_t
+        \]
+        is discretized as:
+        \[
+        S_{t+1} = S_t + S_t r h + S_t \sigma(S_t, V_t, t) \sqrt{h} dW_t
+        \]
+        where \( dW_t \sim N(0,1) \) and \( h \) is the time step size.
+
+        - The variance process:
+        \[
+        dV_t = \mu_V(V_t, t) dt + \sigma_V(V_t, t) dB_t
+        \]
+        is discretized as:
+        \[
+        V_{t+1} = V_t + \mu_V(V_t, t) h + \sigma_V(V_t, t) \sqrt{h} dB_t
+        \]
+        where \( dB_t \) is a correlated Brownian motion:
+        \[
+        dB_t = \rho dW_t + \sqrt{1 - \rho^2} \sqrt{h} Z_t
+        \]
+        with \( Z_t \sim N(0,1) \) independent of \( dW_t \).
+
+        - **Clamping** is applied to ensure \( V_t \geq 0 \) at each step.
+        """
+
         ones = torch.ones(MC_samples, 1, device=self.device)
-        path = torch.zeros(MC_samples, len(self.timegrid), device=self.device)
+        path = torch.zeros(MC_samples, len(self.timegrid), device=self.device)  # Stock paths
+        var_path = torch.zeros(MC_samples, len(self.timegrid), device=self.device)  # Variance paths
+
         S_old = ones * S0
         path[:, 0] = S_old.squeeze(1)
+
+        # Initial variance from LSV model (computed from `v0`)
         V_old = ones * torch.sigmoid(self.v0) * 0.5
+        var_path[:, 0] = V_old.squeeze(1)
+
         rho = torch.tanh(self.rho)
+        running_max = S_old  # Track max stock price for exotic options
 
         cv_vanilla = torch.zeros(S_old.shape[0], len(self.strikes_call) * len(self.maturities), device=self.device)
         price_vanilla_cv = torch.zeros(len(self.maturities), len(self.strikes_call), device=self.device)
         var_price_vanilla_cv = torch.zeros_like(price_vanilla_cv)
 
         cv_exotics = torch.zeros(S_old.shape[0], 1, device=self.device)
-
         exotic_option_price = torch.zeros_like(S_old)
-        running_max = S_old
 
-        # Solve for S_t (Euler)
         for i in range(1, ind_T + 1):
-            idx = (i - 1) // period_length  # assume maturities are evenly distributed
+            idx = (i - 1) // period_length
             t = torch.ones_like(S_old) * self.timegrid[i - 1]
             h = self.timegrid[i] - self.timegrid[i - 1]
             dW = (torch.sqrt(h) * z[:, i - 1]).reshape(MC_samples, 1)
             zz = torch.randn_like(dW)
-            dB = rho * dW + torch.sqrt(1 - rho ** 2) * torch.sqrt(h) * zz
+            dB = rho * dW + torch.sqrt(1 - rho ** 2) * torch.sqrt(h) * zz  # Correlated noise for variance
 
-            current_time = ones * self.timegrid[i - 1]
+            # Compute LSV diffusion term \( \sigma(S, V, t) \)
             diffusion = self.diffusion.forward_idx(idx, torch.cat([t, S_old, V_old], 1))
+
+            # Update stock price \( S_t \)
             S_new = S_old + self.rate * S_old * h / (
                         1 + self.rate * S_old.detach() * torch.sqrt(h)) + S_old * diffusion * dW / (
                                 1 + S_old.detach() * diffusion.detach() * torch.sqrt(h))
+
+            # Update variance \( V_t \) using drift and diffusion terms
             V_new = V_old + self.driftV.forward_idx(idx, V_old) * h + self.diffusionV.forward_idx(idx, V_old) * dB
 
-            cv_vanilla += torch.exp(-self.rate * self.timegrid[
-                i - 1]) * S_old.detach() * diffusion.detach() * self.control_variate_vanilla.forward_idx(idx, torch.cat(
-                [t, S_old.detach()], 1)) * dW.repeat(1, len(self.strikes_call) * len(self.maturities))
-            cv_exotics += torch.exp(-self.rate * self.timegrid[
-                i - 1]) * S_old.detach() * diffusion.detach() * self.control_variate_exotics.forward_idx(idx, torch.cat(
-                [t, path, V_old.detach()], 1)) * dW
-
-            S_old = S_new
-            V_old = torch.clamp(V_new, 0)
-            path[:, i] = S_old.detach().squeeze(1)
+            # Store computed values
+            path[:, i] = S_new.detach().squeeze(1)
+            var_path[:, i] = torch.clamp(V_new, 0).detach().squeeze(1)  # Ensure variance is non-negative
 
             running_max = torch.max(running_max, S_old)
+            S_old = S_new
+            V_old = torch.clamp(V_new, 0)  # Ensure variance stays positive
 
             if i in self.maturities:
                 ind_maturity = self.maturities.index(i)
@@ -107,7 +175,7 @@ class Net_LSV(nn.Module):
                     cv = cv_vanilla.view(-1, len(self.maturities), len(self.strikes_call))
                     price_vanilla = torch.exp(-self.rate * self.timegrid[i]) * torch.clamp(S_old - strike, 0).squeeze(
                         1) - cv[:, ind_maturity, idx]
-                    price_vanilla_cv[ind_maturity, idx] = price_vanilla.mean()  # torch.exp(-rate/n_steps)*price.mean()
+                    price_vanilla_cv[ind_maturity, idx] = price_vanilla.mean()
                     var_price_vanilla_cv[ind_maturity, idx] = price_vanilla.var()
 
         exotic_option_price = running_max - S_old
@@ -115,7 +183,8 @@ class Net_LSV(nn.Module):
             torch.exp(-self.rate * self.timegrid[ind_T]) * exotic_option_price.detach()) - cv_exotics.detach()
         exotic_option_price = torch.exp(-self.rate * self.timegrid[ind_T]) * exotic_option_price - cv_exotics
 
-        return path, price_vanilla_cv, var_price_vanilla_cv, exotic_option_price, exotic_option_price.mean(), exotic_option_price.var(), error
+        # Return both stock path and variance path
+        return path, var_path, diffusion.detach(), price_vanilla_cv, var_price_vanilla_cv, exotic_option_price, exotic_option_price.mean(), exotic_option_price.var(), error
 
 
 def init_weights(m):

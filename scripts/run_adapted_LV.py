@@ -25,8 +25,8 @@ if __name__ == "__main__":
         device = "cpu"
 
     # Load market prices
-    data = torch.load("Call_prices_59.pt")
-    print("Loading data from Call_prices_59.pt.")
+    data = torch.load("data/Call_prices_59.pt")
+    print("Loading data from data/Call_prices_59.pt.")
     print(f"Data Shape: {data.shape}")
 
     # Set up training - Strike values, time discretization, and maturities
@@ -59,7 +59,8 @@ if __name__ == "__main__":
     z_test = torch.cat([z_test, -z_test], 0)  # Antithetic Brownian paths
 
     # Logging file
-    with open("error_hedge.txt", "w") as f:
+    error_path = os.path.join(args.save_dir, "error_hedge_LV.txt")
+    with open(error_path, "w") as f:
         f.write("epoch,error_hedge_2,error_hedge_inf\n")
 
     # Training Configuration
@@ -85,18 +86,20 @@ if __name__ == "__main__":
     stock_path, var_path, diffusion, _, _, _, _, _ = best_model(S0, batch_z, batch_size, T, period_length)
 
     # Ensure save directory exists
-    save_dir = os.path.dirname(args.save_path)
+    save_dir = os.path.dirname(args.save_dir)
     if save_dir and not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
 
     # Save stock price trajectory and diffusion parameters
-    stock_save_path = "data/stock_traj_LV.txt"
-    diffusion_save_path = "data/LV_diffusion.txt"
-    var_save_path = "data/var_traj_LV.txt"
+    stock_save_path = os.path.join(args.save_dir, "stock_traj_LV.txt")
+    diffusion_save_path = os.path.join(args.save_dir, "diffusion_LV.txt")
+    var_save_path = os.path.join(args.save_dir, "var_traj_LV.txt")
 
-    print(f"Saving stock price trajectory to {stock_save_path} and diffusion parameters to {diffusion_save_path}.")
     np.savetxt(stock_save_path, stock_path.cpu().numpy())
+    print(f"Saving stock price trajectory to file {stock_save_path}...")
     np.savetxt(diffusion_save_path, diffusion.cpu().numpy())
+    print(f"Saving diffusion parameters to file {diffusion_save_path}...")
     np.savetxt(var_save_path, var_path.cpu().numpy())
+    print(f"Saving stock variance trajectory to file {var_save_path}...")
 
     print("Run completed successfully.")
