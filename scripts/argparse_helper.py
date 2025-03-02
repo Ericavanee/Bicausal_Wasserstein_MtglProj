@@ -19,6 +19,7 @@ class HestonParams:
     timesteps: int = field(default=96, metadata={"help": "Number of time steps in the simulation."})
     seed: int = field(default=42, metadata={"help": "Random seed for reproducibility."})
 
+@dataclass
 class NsdeParams:
     device: int = field(default=0, metadata={"help": "Device index for CUDA (0 for first GPU)."})
     n_layers: int = field(default=4, metadata={"help": "Number of layers in the neural SDE network."})

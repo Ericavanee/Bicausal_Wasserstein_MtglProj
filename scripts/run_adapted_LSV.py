@@ -26,8 +26,8 @@ if __name__ == "__main__":
         device = "cpu"
 
     # Load market prices
-    data = torch.load("data/Call_prices_59.pt")
-    print("Loading data from data/Call_prices_59.pt.")
+    data = torch.load("../data/Call_prices_59.pt")
+    print("Loading data from ../data/Call_prices_59.pt.")
     print(f"Data Shape: {data.shape}")
 
     # Set up training - Strike values, time discretisation, and maturities
@@ -100,3 +100,16 @@ if __name__ == "__main__":
     print(f"Saving stock variance trajectory to file {args.save_var_path}...")
 
     print("Run completed successfully.")
+
+
+    # Example script
+    """
+    python scripts/run_adapted_LSV.py \
+    --device 0 \
+    --n_layers 4 \
+    --vNetWidth 128 \
+    --MC_samples_test 1000 \
+    --batch_size 64 \
+    --n_epochs 100 \
+    --save_dir data/
+    """
