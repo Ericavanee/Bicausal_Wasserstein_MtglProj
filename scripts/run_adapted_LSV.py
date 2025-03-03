@@ -112,9 +112,9 @@ if __name__ == "__main__":
     python scripts/run_adapted_LSV.py \
     --device 0 \
     --n_layers 4 \
-    --vNetWidth 128 \
-    --MC_samples_test 1000 \
-    --batch_size 64 \
+    --vNetWidth 50 \
+    --MC_samples_test 4000 \
+    --batch_size 1000 \
     --n_epochs 100 \
     --save_dir data/nsde_calibration/
     """

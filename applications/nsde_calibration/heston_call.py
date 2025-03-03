@@ -291,13 +291,17 @@ class HestonModel:
         return vanilla_prices, exotic_prices
     
 
-    def price_payoff_coupling(self, strikes_call, maturities, outer_itr = 10, inner_itr = 10): #TODO: modify this to take in custom (calibrated) outer trajectory with x.
+    def price_payoff_coupling(self, x, v, strikes_call, maturities, outer_itr = 10, inner_itr = 10): #TODO: modify this to take in custom (calibrated) outer trajectory with x.
         """
         Return coupling of price of vanilla options using nested MC and payoff calculated directly by conditioning on S0.
         This is to be passed to directly conduct the martingale test.
 
         Parameters
         ----------
+        x : 2D array-like of shape (n_paths, n_timesteps)
+            The calibrated stock price paths.
+        v: 2D array-like of shape (n_paths, n_timesteps)
+            The calibrated variance paths.
         strikes_call : 1D array-like of length n_strikes
         maturities : 1D array-like of length n_maturities
             Each T >= t_in_years. Note that this is a list or array of final maturities with T_i >= t_in_years
@@ -313,16 +317,17 @@ class HestonModel:
         timegrid = np.linspace(0,1,self.timesteps+1)
         
         # record the last maturity in terms of total time steps as ind_T.
-        ind_T = int(maturities[-1]*self.timesteps)
+        ind_T = int(maturities[-1])
 
-        # 1) generate outer MC (calibrated MC)
-        outer_stock, outer_var, _ = self.Heston_stock(itr=outer_itr) # shapes => (outer_itr, j_idx+1)
-
+        # 1) use calibrated stock and variance paths for outer paths.
+        #outer_stock, outer_var, _ = self.Heston_stock(itr=outer_itr) # shapes => (outer_itr, n_timesteps)
+        outer_stock = x
+        outer_var = v
         # initiate holders for vanilla option at different maturities
         # structure: mat_ls[maturity_i_index][outer_itr, len(strikes_call), num_time_steps_up_to_maturity_i]
         mat_ls = []
         for i in range(len(maturities)):
-            mat_ls.append(np.zeros((outer_itr,len(strikes_call),int(maturities[i]*self.timesteps))))
+            mat_ls.append(np.zeros((outer_itr,len(strikes_call),int(maturities[i]))))
             
 
         for i in tqdm(range(outer_itr), desc="Running Outer Monte Carlo", leave=True):
@@ -357,7 +362,7 @@ class HestonModel:
         for i in range(len(maturities)):
             vanilla_payoff = np.zeros((outer_itr, len(strikes_call)))
             for idx, strike in enumerate(strikes_call):
-                vanilla_payoff[:,idx] = np.exp(-self.r*my_mat)*np.clip(outer_stock.T[int(maturities[i]*self.timesteps)]-strike,0,np.inf)
+                vanilla_payoff[:,idx] = np.exp(-self.r*my_mat)*np.clip(outer_stock.T[int(maturities[i])]-strike,0,np.inf)
             vanilla_payoff_ls.append(vanilla_payoff)
 
         return mat_ls, vanilla_payoff_ls
@@ -410,7 +415,7 @@ class HestonModel:
 #         r=0.02,  # Risk-free rate
 #         V0=0.04, # Initial variance
 #         kappa=0.5, mu=0.04, eta=0.3, rho=-0.5, # Heston parameters
-#         dt=1/252, timesteps=252,  # 252 trading days per year
+#         dt=1/96, timesteps=96,
 #         seed=42  # Fixing seed for reproducibility
 #     )
 
@@ -423,7 +428,7 @@ class HestonModel:
 
 #     # Define strike prices and maturities for option pricing
 #     strike_prices = np.array([90, 100, 110])  # ATM, ITM, OTM
-#     maturities = np.array([0.5, 1.0])  # 6 months, 1 year
+#     maturities = np.array([0.5*96, 1.0*96])  # 6 months, 1 year
 
 #     # Price vanilla and exotic options using nested Monte Carlo
 #     vanilla_prices, exotic_prices = heston.price_option_for_t(

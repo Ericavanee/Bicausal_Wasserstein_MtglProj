@@ -254,7 +254,7 @@ def train_nsde(model, z_test, config):
         with open(error_path, "a") as f:
             f.write("{},{:.4f},{:.4f},{:.4f}\n".format(epoch, error_hedge_2, error_hedge_inf, exotic_price_var.item()))
         if (epoch + 1) % 100 == 0:
-            tar_path = os.path.join(save_dir, "error_hedge.pth.tar")
+            tar_path = os.path.join(save_dir, "error_hedge_LV.pth.tar")
             torch.save(error_hedge, tar_path)
 
         # Evaluation Error of calibration to vanilla option prices
