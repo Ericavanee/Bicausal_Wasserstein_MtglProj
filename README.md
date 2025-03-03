@@ -12,6 +12,6 @@ IN PROGRESS
 payoff estimated by coniditioning on $S_0$.
 
     The primary scripts are as follows:   
-    - **`run_adapted_LV.py`**: Run **`adapted_LV.py`** gets stock and variance trajectory calibrated via the LV neural-SDE model.
-    - **`run_adapted_LSV.py`**: Run **`adapted_LV.py`** gets stock and variance trajectory calibrated via the LSV neural-SDE model.
-    - **`heston_coupling.py`**: Run **`adapted_LV.py`** get couplings of **actual** call options payoff calculated via a nested MC conditioning on the stock price $S_t$ at each intermediate time $t$ and the payoff estimated by coniditioning on $S_0$ using a given calibrated stock trajectory.
+    - **`run_adapted_LV.py`**: Run **`adapted_LV.py`** to get stock and variance trajectory calibrated via the LV neural-SDE model.
+    - **`run_adapted_LSV.py`**: Run **`adapted_LV.py`** to get stock and variance trajectory calibrated via the LSV neural-SDE model.
+    - **`heston_coupling.py`**: Run **`adapted_LV.py`** to get couplings of **actual** call options payoff calculated via a nested MC conditioning on the stock price $S_t$ at each intermediate time $t$ and the payoff estimated by coniditioning on $S_0$ using a given calibrated stock trajectory.
