@@ -3,3 +3,5 @@ simulated_data/
 past_funs.py
 test.ipynb
 __pycache__/
+notes.txt
+data/nsde_calibration/

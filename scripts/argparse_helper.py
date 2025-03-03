@@ -5,6 +5,7 @@ Stores object parameters.
 import sys
 sys.path.append('.')
 from dataclasses import dataclass, field
+import numpy as np
 
 @dataclass
 class HestonParams:
@@ -25,8 +26,17 @@ class NsdeParams:
     n_layers: int = field(default=4, metadata={"help": "Number of layers in the neural SDE network."})
     vNetWidth: int = field(default=50, metadata={"help": "Width of the neural network."})
     experiment: int = field(default=0, metadata={"help": "Experiment index."})
-    batch_size: int = field(default=4000, metadata={"help": "Batch size for training."})
-    n_epochs: int = field(default=100, metadata={"help": "Number of training epochs."})
-    MC_samples_test: int = field(default=1000, metadata={"help": "Number of Monte Carlo test samples."})
+    batch_size: int = field(default=4000, metadata={"help": "Batch size for training."}) # 40000 for original
+    n_epochs: int = field(default=100, metadata={"help": "Number of training epochs."}) # 1000 for original
+    MC_samples_test: int = field(default=1000, metadata={"help": "Number of Monte Carlo test samples."}) # 200000 for original
     save_dir: str = field(default="data/", metadata={"help": "Directory to save stock price trajectories."})
+
+@dataclass
+class OptionParam:
+    maturities: range = field(default=range(16, 33, 16), metadata={"help": "Maturities as a range object. Note maturities here is adjusted by the number of timesteps. For instance, if maturity = 0.5 (i.e. 6 months), and timesteps = 96, then the maturity is 0.5 * 96 = 48."})
+    timesteps: int = field(default=96, metadata={"help": "Number of time steps in the simulation."})
+    strikes_call: np.ndarray = field(default_factory=lambda: np.arange(0.8, 1.21, 0.02),
+                                     metadata={"help": "Array of strike prices for call options."})
+    stock_init: float = field(default=1.0, metadata={"help": "Initial stock price."})
+    rate: float = field(default=0.025, metadata={"help": "Risk-free rate."})
 

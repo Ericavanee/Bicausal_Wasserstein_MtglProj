@@ -142,8 +142,9 @@ class Net_LSV(nn.Module):
         cv_exotics = torch.zeros(S_old.shape[0], 1, device=self.device)
         exotic_option_price = torch.zeros_like(S_old)
 
+        # Solve for S_t (Euler)
         for i in range(1, ind_T + 1):
-            idx = (i - 1) // period_length
+            idx = (i - 1) // period_length # assume maturities are evenly distributed
             t = torch.ones_like(S_old) * self.timegrid[i - 1]
             h = self.timegrid[i] - self.timegrid[i - 1]
             dW = (torch.sqrt(h) * z[:, i - 1]).reshape(MC_samples, 1)
@@ -151,40 +152,34 @@ class Net_LSV(nn.Module):
             dB = rho * dW + torch.sqrt(1 - rho ** 2) * torch.sqrt(h) * zz  # Correlated noise for variance
 
             # Compute LSV diffusion term \( \sigma(S, V, t) \)
-            diffusion = self.diffusion.forward_idx(idx, torch.cat([t, S_old, V_old], 1))
+            diffusion = self.diffusion.forward_idx(idx, torch.cat([t,S_old, V_old],1))
+            S_new = S_old + self.rate*S_old*h/(1+self.rate*S_old.detach()*torch.sqrt(h)) + S_old*diffusion* dW/(1+S_old.detach()*diffusion.detach()*torch.sqrt(h))
+            V_new = V_old + self.driftV.forward_idx(idx,V_old)*h + self.diffusionV.forward_idx(idx, V_old)*dB
+            
+            cv_vanilla += torch.exp(-self.rate * self.timegrid[i-1]) * S_old.detach() * diffusion.detach() * self.control_variate_vanilla.forward_idx(idx,torch.cat([t,S_old.detach()],1)) * dW.repeat(1,len(self.strikes_call)*len(self.maturities))
+            cv_exotics += torch.exp(-self.rate * self.timegrid[i-1]) * S_old.detach() * diffusion.detach() * self.control_variate_exotics.forward_idx(idx,torch.cat([t,path, V_old.detach()],1)) * dW 
 
-            # Update stock price \( S_t \)
-            S_new = S_old + self.rate * S_old * h / (
-                        1 + self.rate * S_old.detach() * torch.sqrt(h)) + S_old * diffusion * dW / (
-                                1 + S_old.detach() * diffusion.detach() * torch.sqrt(h))
-
-            # Update variance \( V_t \) using drift and diffusion terms
-            V_new = V_old + self.driftV.forward_idx(idx, V_old) * h + self.diffusionV.forward_idx(idx, V_old) * dB
-
-            # Store computed values
-            path[:, i] = S_new.detach().squeeze(1)
-            var_path[:, i] = torch.clamp(V_new, 0).detach().squeeze(1)  # Ensure variance is non-negative
+            S_old = S_new
+            V_old = torch.clamp(V_new,0)
+            path[:,i] = S_old.detach().squeeze(1)
+            var_path[:, i] = torch.clamp(V_new, 0).detach().squeeze(1) # Ensure variance is non-negative
 
             running_max = torch.max(running_max, S_old)
-            S_old = S_new
-            V_old = torch.clamp(V_new, 0)  # Ensure variance stays positive
 
             if i in self.maturities:
                 ind_maturity = self.maturities.index(i)
                 for idx, strike in enumerate(self.strikes_call):
-                    cv = cv_vanilla.view(-1, len(self.maturities), len(self.strikes_call))
-                    price_vanilla = torch.exp(-self.rate * self.timegrid[i]) * torch.clamp(S_old - strike, 0).squeeze(
-                        1) - cv[:, ind_maturity, idx]
-                    price_vanilla_cv[ind_maturity, idx] = price_vanilla.mean()
-                    var_price_vanilla_cv[ind_maturity, idx] = price_vanilla.var()
+                    cv = cv_vanilla.view(-1,len(self.maturities), len(self.strikes_call))
+                    price_vanilla = torch.exp(-self.rate*self.timegrid[i])*torch.clamp(S_old-strike,0).squeeze(1)-cv[:,ind_maturity,idx]
+                    price_vanilla_cv[ind_maturity,idx] = price_vanilla.mean()#torch.exp(-rate/n_steps)*price.mean()
+                    var_price_vanilla_cv[ind_maturity,idx] = price_vanilla.var()
 
         exotic_option_price = running_max - S_old
-        error = torch.exp(-self.rate * self.timegrid[ind_T]) * exotic_option_price.detach() - torch.mean(
-            torch.exp(-self.rate * self.timegrid[ind_T]) * exotic_option_price.detach()) - cv_exotics.detach()
-        exotic_option_price = torch.exp(-self.rate * self.timegrid[ind_T]) * exotic_option_price - cv_exotics
+        error = torch.exp(-self.rate*self.timegrid[ind_T])*exotic_option_price.detach() - torch.mean(torch.exp(-self.rate*self.timegrid[ind_T])*exotic_option_price.detach()) - cv_exotics.detach()
+        exotic_option_price = torch.exp(-self.rate*self.timegrid[ind_T])*exotic_option_price  - cv_exotics
 
         # Return both stock path and variance path
-        return path, var_path, diffusion.detach(), price_vanilla_cv, var_price_vanilla_cv, exotic_option_price, exotic_option_price.mean(), exotic_option_price.var(), error
+        return path, var_path, price_vanilla_cv, var_price_vanilla_cv, exotic_option_price, exotic_option_price.mean(), exotic_option_price.var(), error
 
 
 def init_weights(m):
@@ -194,8 +189,8 @@ def init_weights(m):
 
 def train_nsde(model, z_test, config):
     loss_fn = nn.MSELoss()
-
-    n_maturities = len(maturities)
+    device = config["device"]
+    S0 = config["init_stock"]
     model = model.to(device)
     model.apply(init_weights)
     params_SDE = list(model.diffusion.parameters()) + list(model.driftV.parameters()) + list(
@@ -250,7 +245,7 @@ def train_nsde(model, z_test, config):
             optimizer_CV.zero_grad()
 
             init_time = time.time()
-            path, pred, var, _, exotic_option_price, exotic_option_var, _ = model(S0, batch_z, batch_size, T,
+            path, var_path, pred, var, _, exotic_option_price, exotic_option_var, _ = model(S0, batch_z, batch_size, T,
                                                                             period_length=16)
             time_forward = time.time() - init_time
 
@@ -284,7 +279,7 @@ def train_nsde(model, z_test, config):
 
         # evaluate and print RMSE validation error at the start of each epoch
         with torch.no_grad():
-            path, pred, _, exotic_option_price, exotic_price_mean, exotic_price_var, error = model(S0, z_test,
+            path, var_path, pred, _, exotic_option_price, exotic_price_mean, exotic_price_var, error = model(S0, z_test,
                                                                                              z_test.shape[0], T,
                                                                                              period_length=16)
             print("pred:", pred)
@@ -306,14 +301,15 @@ def train_nsde(model, z_test, config):
         with open("log_eval.txt", "a") as f:
             f.write('{},{:.4e}\n'.format(epoch, loss_val.item()))
 
-        # save checkpooint
+        # save checkpoint
         if loss_val < loss_val_best:
             model_best = model
             loss_val_best = loss_val
             print('loss_val_best', loss_val_best)
             type_bound = "no"  # "lower" if args.lower_bound else "upper"
-            filename = "Neural_SDE_exp{}_{}bound_maturity{}_AugmentedLagrangian.pth.tar".format(args.experiment,
-                                                                                                type_bound, T)
+            filename = "Neural_SDE_exp{}_{}bound_maturity{}_AugmentedLagrangian.pth.tar".format(config["experiment"], type_bound, T)
+            # update file to the correct directory for checkpoint saving
+            filename = os.path.join(config['save_dir'], filename)
             checkpoint = {"state_dict": model.state_dict(),
                           "exotic_price_mean": exotic_price_mean,
                           "exotic_price_var": exotic_price_var,
