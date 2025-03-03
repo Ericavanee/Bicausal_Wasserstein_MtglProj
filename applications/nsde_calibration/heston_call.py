@@ -291,7 +291,7 @@ class HestonModel:
         return vanilla_prices, exotic_prices
     
 
-    def price_payoff_coupling(self, x, v, strikes_call, maturities, outer_itr = 10, inner_itr = 10): #TODO: modify this to take in custom (calibrated) outer trajectory with x.
+    def price_payoff_coupling(self, x, v, strikes_call, maturities, inner_itr = 10): #TODO: modify this to take in custom (calibrated) outer trajectory with x.
         """
         Return coupling of price of vanilla options using nested MC and payoff calculated directly by conditioning on S0.
         This is to be passed to directly conduct the martingale test.
@@ -305,11 +305,12 @@ class HestonModel:
         strikes_call : 1D array-like of length n_strikes
         maturities : 1D array-like of length n_maturities
             Each T >= t_in_years. Note that this is a list or array of final maturities with T_i >= t_in_years
-        outer_itr, inner_itr : int
+        inner_itr : int
             The number of outer and inner paths for the nested MC.
         """
         np.random.seed(self.seed)
         # Sort maturities in ascending order (just in case user gave them unsorted)
+        outer_itr = x.shape[0]
         maturities = np.array(maturities, dtype=float)
         maturities.sort()
         
