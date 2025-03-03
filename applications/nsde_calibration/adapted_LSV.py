@@ -191,6 +191,8 @@ def train_nsde(model, z_test, config):
     loss_fn = nn.MSELoss()
     device = config["device"]
     S0 = config["init_stock"]
+    save_dir = config["save_dir"]
+
     model = model.to(device)
     model.apply(init_weights)
     params_SDE = list(model.diffusion.parameters()) + list(model.driftV.parameters()) + list(
@@ -286,19 +288,26 @@ def train_nsde(model, z_test, config):
             print("target", target_mat_T)
 
         # Exotic option price hedging strategy error
+        save_dir_norm = os.path.normpath(save_dir)
+        log_save_dir = os.path.join(save_dir_norm, "log_LSV")
+        if log_save_dir and not os.path.exists(log_save_dir):
+            os.makedirs(log_save_dir, exist_ok=True)
         error_hedge = error
         error_hedge_2 = torch.mean(error_hedge ** 2)
         error_hedge_inf = torch.max(torch.abs(error_hedge))
-        with open("error_hedge.txt", "a") as f:
+        error_path = os.path.join(save_dir, "error_hedge_LV.txt")
+        with open(error_path, "a") as f:
             f.write("{},{:.4f},{:.4f},{:.4f}\n".format(epoch, error_hedge_2, error_hedge_inf, exotic_price_var.item()))
         if (epoch + 1) % 100 == 0:
-            torch.save(error_hedge, "error_hedge.pth.tar")
+            tar_path = os.path.join(save_dir, "error_hedge.pth.tar")
+            torch.save(error_hedge, tar_path)
 
         # Evaluation Error of calibration to vanilla option prices
         MSE = loss_fn(pred, target_mat_T)
         loss_val = torch.sqrt(MSE)
         print('epoch={}, loss={:.4f}'.format(epoch, loss_val.item()))
-        with open("log_eval.txt", "a") as f:
+        log_path = os.path.join(log_save_dir, "log_eval.txt")
+        with open(log_path, "a") as f:
             f.write('{},{:.4e}\n'.format(epoch, loss_val.item()))
 
         # save checkpoint
@@ -309,7 +318,7 @@ def train_nsde(model, z_test, config):
             type_bound = "no"  # "lower" if args.lower_bound else "upper"
             filename = "Neural_SDE_exp{}_{}bound_maturity{}_AugmentedLagrangian.pth.tar".format(config["experiment"], type_bound, T)
             # update file to the correct directory for checkpoint saving
-            filename = os.path.join(config['save_dir'], filename)
+            filename = os.path.join(log_save_dir, filename)
             checkpoint = {"state_dict": model.state_dict(),
                           "exotic_price_mean": exotic_price_mean,
                           "exotic_price_var": exotic_price_var,
