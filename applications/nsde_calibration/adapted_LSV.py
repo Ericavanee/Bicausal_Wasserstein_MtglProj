@@ -292,6 +292,7 @@ def train_nsde(model, z_test, config):
         log_save_dir = os.path.join(save_dir_norm, "log_LSV")
         if log_save_dir and not os.path.exists(log_save_dir):
             os.makedirs(log_save_dir, exist_ok=True)
+        
         error_hedge = error
         error_hedge_2 = torch.mean(error_hedge ** 2)
         error_hedge_inf = torch.max(torch.abs(error_hedge))
