@@ -1,3 +1,7 @@
+"""
+This script contains functions for simulating and integrating multi-dimensional Gaussian random fields.
+"""
+
 import numpy as np
 from itertools import product
 import matplotlib.pyplot as plt
@@ -5,7 +9,6 @@ from scipy.interpolate import Rbf
 from scipy.integrate import nquad
 from scipy.integrate import quad
 
-# This package simulates integral of multi-dimensional (including d = 1) Gaussian random field
 
 # basic helper 1-dimensional martingale coupling generator (X,Y)
 def basic(n_samples):
