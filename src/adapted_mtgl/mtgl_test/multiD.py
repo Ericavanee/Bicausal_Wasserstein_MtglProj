@@ -11,14 +11,16 @@ from scipy.integrate import quad
 
 
 # basic helper 1-dimensional martingale coupling generator (X,Y)
-def basic(n_samples):
+def basic(n_samples, seed = 42):
+    np.random.seed(seed)
     x = np.random.normal(0,1,n_samples)
     z = np.random.normal(0,1,n_samples)
     y = np.add(z, x)
     return x,y
 
 # basic helper multi-dimensional martingale coupling generator (X,Y)
-def basic_multi(n_samples,d):
+def basic_multi(n_samples,d, seed = 42):
+    np.random.seed(seed)
     mean = np.zeros(d)
     cov = np.eye(d)
     x = np.random.multivariate_normal(mean, cov, n_samples)

@@ -30,7 +30,7 @@ def plot_brownian_motion(n, seed = 42):
 def get_multivariate_normal(mean,cov):
     return multivariate_normal(mean, cov)
 
-def post_smooth_density(xb,yb,x,y,w_rv):
+def post_smooth_density(xb,yb,x,y,w_rv): # w_rv is a scipy.stats.multivariate_normal object
     n = len(x)
     sum_ls = []
     for i in range(n):
@@ -64,6 +64,7 @@ def plot_smooth_density(x,y,p,lbd,ubd,w_rv):
     plt.show()
     
 
+# fomularic integration
 def compute_condExp_y(xb,x,y,sig):
     n = len(x)
     normal_rv = norm(0,1)
@@ -137,10 +138,36 @@ def calc_monteCarlo_obj(n,sig):
         temp = calc_obj(xb[i],yb[i],x,y,sig)
         sum_ls.append(temp)
         
-    return (1/(100*n))*sum(sum_ls)  
+    return (1/(100*n))*sum(sum_ls) 
+
+def monteCarlo_obj(x,y,n,sig, seed = 42):
+    np.random.seed(seed)
+    # truncate x,y
+    x = x[:n] # first n elements
+    y = y[:n] # first n elements
+    # create smoothed vec
+    z1 = np.random.normal(0,1,100*n)
+    z2 = np.random.normal(0,1,100*n)
+    xb = []
+    for i in range(100*n):
+        x_temp = np.random.choice(x)
+        xb.append(x_temp+sig*z1[i])
+    
+    yb = []
+    for i in range(100*n):
+        y_temp = random.choice(y)
+        yb.append(y_temp+sig*z1[i]+sig*z2[i])
+    
+    #calculate objective function
+    sum_ls = []
+    for i in range(100*n):
+        temp = calc_obj(xb[i],yb[i],x,y,sig)
+        sum_ls.append(temp)
+        
+    return (1/(100*n))*sum(sum_ls)   
 
 
-def plot_monteCarlo(w_rv,sig,n_grid):
+def plot_monteCarlo(sig,n_grid):
     p = len(n_grid)
     
     # create unsmoothed vec
