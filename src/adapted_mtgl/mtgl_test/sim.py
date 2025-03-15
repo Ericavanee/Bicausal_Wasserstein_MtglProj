@@ -124,12 +124,12 @@ def calc_monteCarlo_obj(n,sig):
     z2 = np.random.normal(0,1,100*n)
     xb = []
     for i in range(100*n):
-        x_temp = random.choice(x)
+        x_temp = np.random.choice(x)
         xb.append(x_temp+sig*z1[i])
     
     yb = []
     for i in range(100*n):
-        y_temp = random.choice(y)
+        y_temp = np.random.choice(y)
         yb.append(y_temp+sig*z1[i]+sig*z2[i])
     
     #calculate objective function
@@ -155,7 +155,7 @@ def monteCarlo_obj(x,y,n,sig, seed = 42):
     
     yb = []
     for i in range(100*n):
-        y_temp = random.choice(y)
+        y_temp = np.random.choice(y)
         yb.append(y_temp+sig*z1[i]+sig*z2[i])
     
     #calculate objective function
