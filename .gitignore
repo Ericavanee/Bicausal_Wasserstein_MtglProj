@@ -1,5 +1,5 @@
 graphs/
-sim_data/
+demos/sim_data/
 past_funs.py
 test.ipynb
 __pycache__/
