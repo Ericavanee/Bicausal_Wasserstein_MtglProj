@@ -4,9 +4,8 @@ Includes the simulation of the asymptotic distribution of the martingale test te
 """
 
 import warnings
-from adapted_mtgl.mtgl_test.test_cases import *
+from src.adapted_mtgl.mtgl_test.test_cases import *
 from src.adapted_mtgl.mtgl_test.multiD import *
-import scipy.integrate as integrate
 
 warnings.filterwarnings("ignore")
 

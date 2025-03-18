@@ -2,7 +2,6 @@
 This script simulates: 
     (i). smoothed density of a Brownian Motion given different values of sigmas.
     (ii). error of martigale projection given samples size.
-    (iii). asymptotic distribution of the martingale test test satistic.
 
 Here the martingale coupling is taken from a Brownian Motion, where Y-X is assumed to be independent from X.
 """
@@ -10,8 +9,10 @@ Here the martingale coupling is taken from a Brownian Motion, where Y-X is assum
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from scipy.stats import multivariate_normal
-from scipy.stats import norm
+from scipy.stats import multivariate_normal, norm
+import warnings
+
+warnings.filterwarnings("ignore")
 
 
 # Brownian Motion Simulation
@@ -173,6 +174,9 @@ def plot_monteCarlo(sig,n_grid):
     plt.show()
     
     return [n_grid,y_ls]
+
+
+
 
 
 

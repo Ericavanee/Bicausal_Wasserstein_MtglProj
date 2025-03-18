@@ -1,13 +1,14 @@
 """
 This script contains functions for simulating and integrating multi-dimensional Gaussian random fields.
 """
-
+import os
 import numpy as np
 from itertools import product
 import matplotlib.pyplot as plt
 from scipy.interpolate import Rbf
 from scipy.integrate import nquad
 from scipy.integrate import quad
+import scipy.integrate as integrate
 
 
 # basic helper 1-dimensional martingale coupling generator (X,Y)
@@ -56,20 +57,31 @@ def generate_grid_points(dim, n_points, lower_bound, upper_bound):
     return grid_points
 
 
-
 # aka: kernel
 # input x is an array
-def smoothing_function(rho, sigma, x):
+def smoothing_function(rho, sigma, diff):
     try:
-        d = len(x[0])
+        d = len(diff[0])
     except:
         d = 1
     if d==1:
-        normed_ls = np.abs(x)
+        normed_ls = np.abs(diff)
     else:
-        normed_ls = np.array([np.linalg.norm(arr) for arr in x])
+        normed_ls = np.array([np.linalg.norm(arr) for arr in diff])
     return sigma**(-d)*(((rho-1)/2)*(np.float_power(normed_ls+1,-rho)))
 
+def smooth1D(sigma, rho, diff):
+    n = len(diff)
+    d = 1
+    
+    result = []
+    for i in range(n):
+        if abs(diff[i]) <= sigma:
+            result.append(sigma ** (-d))
+        else:
+            result.append((sigma ** (rho - d)) * ((rho - 1) / 2)*np.float_power((abs(diff[i]) + 1), -rho))
+            
+    return result
 
 # for each grid point x \in R^d and y \in R^d, the covariance of GxGy is a d-by-d matrix 
 def covariance_fn_multi(x, y, X, Y, sigma, rho):
@@ -93,8 +105,8 @@ def covariance_fn_multi(x, y, X, Y, sigma, rho):
 # 1st dimension version
 def covariance_fn(x,y,X,Y,sigma,rho):
     n = len(X)
-    smooth1 = smoothing_function(rho,sigma,x-X)
-    smooth2 = smoothing_function(rho,sigma,y-X)
+    smooth1 = smooth1D(sigma,rho,x-X)
+    smooth2 = smooth1D(sigma,rho,y-X)
     diff = Y-X
     return (1/n)*sum(diff*smooth1*smooth2*diff)
 
@@ -182,8 +194,39 @@ def integrate_rbf(rbf_func, bounds):
     """
     return nquad(rbf_func, bounds)[0]
 
+# simulate 1D asymptotic distribution using scipy.integrate
+def simulate_integral_distribution(n, n_sim, domain, sigma, rho, save = True, save_dir = "sim_data", seed = 42):
+    # generate base X, Y
+    X, Y = basic(n_sim, seed)
+    # n: partition size
+    xmin, xmax = domain
+    grid = np.linspace(xmin,xmax,n+1)
+    mean = np.zeros(n+1)
+    Z = np.random.normal(size=n+1)
+    cov_matrix = covariance_mat(grid,X,Y,sigma,rho)
+    samples = np.abs(np.random.multivariate_normal(mean, cov_matrix, size = n_sim)) # take the absolute value
+    integral_ls = []
+    for i in range(n_sim):
+        integral_ls.append(integrate.simps(samples[i], grid))
+        
+    integral_ls = np.array(integral_ls) # cast as array
+    mean_integral = integral_ls.mean()
+    var_integral = integral_ls.var()
+
+    print(f"Mean of the integral: {mean_integral}")
+    print(f"Variance of the integral: {var_integral}")
+
+    if save:
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        save_name = f"d1rho{rho}sig{sigma}p{n}n{n_sim}seed{seed}.txt"
+        save_path = os.path.join(save_dir, save_name)
+        np.savetxt(save_path, integral_ls)
+
+    return integral_ls
 
 # integrate a list of scalar values over a corresponding list of fixed grid points
+# includes option for 1D, and provides a variety of methods for integration
 def simulate_integral_multi(domain, n_points, X, Y, sigma, rho, n_sim, method = 'trapez'):
     try:
         d = len(X[0])
