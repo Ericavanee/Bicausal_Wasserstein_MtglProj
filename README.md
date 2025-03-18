@@ -15,3 +15,6 @@ payoff estimated by coniditioning on $S_0$.
     - **`run_adapted_LV.py`**: Run **`adapted_LV.py`** to get stock and variance trajectory calibrated via the LV neural-SDE model.
     - **`run_adapted_LSV.py`**: Run **`adapted_LV.py`** to get stock and variance trajectory calibrated via the LSV neural-SDE model.
     - **`heston_coupling.py`**: Run **`adapted_LV.py`** to get couplings of **actual** call options payoff calculated via a nested MC conditioning on the stock price $S_t$ at each intermediate time $t$ and the payoff estimated by coniditioning on $S_0$ using a given calibrated stock trajectory.
+- **`demos`**: `jupyter` tutorials for functionalities implemented in the repo. It includes demos for running the applications (such as `nsde_calibration.ipynb` for options pricing calibration) and various simulations (see `simulation.ipynb`).
+- **`src`**: `python` source scripts for running the martingale test. 
+
