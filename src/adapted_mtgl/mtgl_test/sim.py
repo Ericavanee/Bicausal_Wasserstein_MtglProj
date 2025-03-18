@@ -1,5 +1,9 @@
 """
-This script simulates error of martigale projection given samples size. 
+This script simulates: 
+    (i). smoothed density of a Brownian Motion given different values of sigmas.
+    (ii). error of martigale projection given samples size.
+    (iii). asymptotic distribution of the martingale test test satistic.
+
 Here the martingale coupling is taken from a Brownian Motion, where Y-X is assumed to be independent from X.
 """
 
@@ -9,6 +13,8 @@ from matplotlib import cm
 from scipy.stats import multivariate_normal
 from scipy.stats import norm
 
+
+# Brownian Motion Simulation
 def plot_brownian_motion(n, seed = 42):
     np.random.seed(seed)
     x = np.cumsum(np.random.randn(n))
@@ -26,7 +32,7 @@ def plot_brownian_motion(n, seed = 42):
     ax.set_title('Simulated Brownian Motion')
     plt.show()
 
-
+# (i). Simulate smoothed density of a Brownian Motion given different values of sigmas
 def get_multivariate_normal(mean,cov):
     return multivariate_normal(mean, cov)
 
@@ -63,7 +69,7 @@ def plot_smooth_density(x,y,p,lbd,ubd,w_rv):
 
     plt.show()
     
-
+# (ii). Error of martigale projection given samples size
 # fomularic integration
 def compute_condExp_y(xb,x,y,sig):
     n = len(x)
@@ -113,32 +119,6 @@ def calc_obj(xb,yb,x,y,sig):
     x_prime,y_prime = get_XY_prime(xb,yb,x,y,sig)
     obj = np.linalg.norm(x=[xb-x_prime],ord=2)**2+np.linalg.norm(x=[yb-y_prime],ord=2)**2
     return obj
-
-def calc_monteCarlo_obj(n,sig):
-    # create unsmoothed vec
-    x = np.random.normal(0,1,n)
-    z = np.random.normal(0,1,n) # z = y-x
-    y = np.add(z, x)
-    # create smoothed vec
-    z1 = np.random.normal(0,1,100*n)
-    z2 = np.random.normal(0,1,100*n)
-    xb = []
-    for i in range(100*n):
-        x_temp = np.random.choice(x)
-        xb.append(x_temp+sig*z1[i])
-    
-    yb = []
-    for i in range(100*n):
-        y_temp = np.random.choice(y)
-        yb.append(y_temp+sig*z1[i]+sig*z2[i])
-    
-    #calculate objective function
-    sum_ls = []
-    for i in range(100*n):
-        temp = calc_obj(xb[i],yb[i],x,y,sig)
-        sum_ls.append(temp)
-        
-    return (1/(100*n))*sum(sum_ls) 
 
 def monteCarlo_obj(x,y,n,sig, seed = 42):
     np.random.seed(seed)
@@ -193,4 +173,6 @@ def plot_monteCarlo(sig,n_grid):
     plt.show()
     
     return [n_grid,y_ls]
+
+
 

@@ -1,8 +1,18 @@
-import warnings
-from src.adapted_mtgl.simulation.test_cases import *
-from src.adapted_mtgl.mtgl_test.multiD import *
+"""
+Implements Multi-dimensional Martingale test for gamma = 1.
+Includes the simulation of the asymptotic distribution of the martingale test test satistic.
+"""
 
-# MultiD Martingale test for gamma = 1
+import warnings
+from adapted_mtgl.mtgl_test.test_cases import *
+from src.adapted_mtgl.mtgl_test.multiD import *
+import scipy.integrate as integrate
+
+warnings.filterwarnings("ignore")
+
+
+
+# Part 1: helper functions
 
 def cutoff(result, conf):
     percentile_cutoff = np.percentile(result, conf)
