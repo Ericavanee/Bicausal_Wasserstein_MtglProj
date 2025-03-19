@@ -1,5 +1,4 @@
 graphs/
-demos/sim_data/
 past_funs.py
 test.ipynb
 __pycache__/
@@ -8,4 +7,4 @@ data/nsde_calibration/
 demos/test_nsde_calibration.ipynb
 demos/calibration_demo.ipynb
 demos/synthetic_experiment.ipynb
-
+demos/test.ipynb
