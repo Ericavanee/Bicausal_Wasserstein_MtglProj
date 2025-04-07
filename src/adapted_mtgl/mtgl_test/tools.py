@@ -89,7 +89,7 @@ def plot_measures(samples, mapped_samples, unique, probabilities):
 
 if __name__ == '__main__':
     d, T, N = 2, 2, 27
-    samples = generate_samples(N, d, T) # d=2 we should have an unflattened grid.
+    samples = generate_samples(N, d, T)
     grid_centers = compute_partition_grid(N, d, T)
     print(grid_centers)
     mapped_samples = map_to_grid(samples, grid_centers)
