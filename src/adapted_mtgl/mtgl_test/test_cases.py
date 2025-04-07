@@ -3,7 +3,7 @@ import scipy as scipy
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from src.adapted_mtgl.mtgl_test.mtgl import mtgl_test, mtgl_test_mc, cutoff
-from src.adapted_mtgl.mtgl_test.tools import get_params
+from src.adapted_mtgl.utils import get_params
 
 # Part (i): test cases for mtgl projection test
 

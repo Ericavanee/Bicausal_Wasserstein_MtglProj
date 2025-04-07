@@ -3,6 +3,15 @@ Utils functions.
 """
 import numpy as np
 
+# utils for general
+def get_params(rho,x,y,sigma = 1):
+    params = {
+    'rho': rho,
+    'x': x,
+    'y': y,
+    'sigma': sigma}
+    return params 
+
 def load_txt_as_matrix(file_path, delimiter=None, dtype=float):
     """
     Loads a 2D data text file as a NumPy ndarray.

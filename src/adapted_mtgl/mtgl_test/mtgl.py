@@ -9,9 +9,8 @@ import matplotlib.pyplot as plt
 from scipy.integrate import nquad
 from scipy.integrate import quad
 from tqdm import tqdm
-from src.adapted_mtgl.mtgl_test.tools import get_params
 from src.adapted_mtgl.mtgl_test.multiD import smoothing_function
-from src.adapted_mtgl.mtgl_test.tools import get_params
+from src.adapted_mtgl.utils import get_params
 
 warnings.filterwarnings("ignore")
 
