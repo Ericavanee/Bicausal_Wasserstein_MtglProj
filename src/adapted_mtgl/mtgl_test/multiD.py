@@ -4,7 +4,6 @@ This script contains functions for simulating and integrating multi-dimensional 
 import os
 import numpy as np
 from itertools import product
-import matplotlib.pyplot as plt
 from scipy.interpolate import Rbf
 from scipy.integrate import nquad
 from scipy.integrate import quad
@@ -64,24 +63,17 @@ def smoothing_function(rho, sigma, diff):
         d = len(diff[0])
     except:
         d = 1
-    if d==1:
+    if d == 1:
         normed_ls = np.abs(diff)
     else:
-        normed_ls = np.array([np.linalg.norm(arr) for arr in diff])
-    return sigma**(-d)*(((rho-1)/2)*(np.float_power(normed_ls+1,-rho)))
+        normed_ls = np.linalg.norm(diff, axis=1)  # cleaner and vectorized
+    C_rho = (rho - 1) / 2
+    return sigma**(-d) * C_rho * np.power(normed_ls / sigma + 1, -rho)
 
-def smooth1D(sigma, rho, diff):
-    n = len(diff)
-    d = 1
-    
-    result = []
-    for i in range(n):
-        if abs(diff[i]) <= sigma:
-            result.append(sigma ** (-d))
-        else:
-            result.append((sigma ** (rho - d)) * ((rho - 1) / 2)*np.float_power((abs(diff[i]) + 1), -rho))
-            
-    return result
+
+def smooth1D(rho, sigma, x):
+    d=1
+    return sigma**(-d)*(((rho-1)/2)*(np.float_power(np.abs(x)+1,-rho)))
 
 # for each grid point x \in R^d and y \in R^d, the covariance of GxGy is a d-by-d matrix 
 def covariance_fn_multi(x, y, X, Y, sigma, rho):
@@ -105,8 +97,8 @@ def covariance_fn_multi(x, y, X, Y, sigma, rho):
 # 1st dimension version
 def covariance_fn(x,y,X,Y,sigma,rho):
     n = len(X)
-    smooth1 = smooth1D(sigma,rho,x-X)
-    smooth2 = smooth1D(sigma,rho,y-X)
+    smooth1 = smooth1D(rho,sigma,x-X)
+    smooth2 = smooth1D(rho,sigma,y-X)
     diff = Y-X
     return (1/n)*sum(diff*smooth1*smooth2*diff)
 
@@ -200,9 +192,8 @@ def simulate_integral_distribution(n, n_sim, domain, sigma, rho, save = True, sa
     X, Y = basic(n_sim, seed)
     # n: partition size
     xmin, xmax = domain
-    grid = np.linspace(xmin,xmax,n+1)
-    mean = np.zeros(n+1)
-    Z = np.random.normal(size=n+1)
+    grid = np.linspace(xmin,xmax,n)
+    mean = np.zeros(n)
     cov_matrix = covariance_mat(grid,X,Y,sigma,rho)
     samples = np.abs(np.random.multivariate_normal(mean, cov_matrix, size = n_sim)) # take the absolute value
     integral_ls = []

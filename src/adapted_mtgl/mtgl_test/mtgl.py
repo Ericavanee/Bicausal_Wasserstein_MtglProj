@@ -4,18 +4,23 @@ Includes the simulation of the asymptotic distribution of the martingale test te
 """
 
 import warnings
-from src.adapted_mtgl.mtgl_test.test_cases import *
-from src.adapted_mtgl.mtgl_test.multiD import *
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import nquad
+from scipy.integrate import quad
+from tqdm import tqdm
+from src.adapted_mtgl.mtgl_test.tools import get_params
+from src.adapted_mtgl.mtgl_test.multiD import smoothing_function
+from src.adapted_mtgl.mtgl_test.tools import get_params
 
 warnings.filterwarnings("ignore")
 
-
-
 # Part 1: helper functions
 
-def cutoff(result, conf):
+def cutoff(result, conf, display = False):
     percentile_cutoff = np.percentile(result, conf)
-    print(f"cutoff value: {percentile_cutoff}")
+    if display:
+        print(f"cutoff value: {percentile_cutoff}")
     return percentile_cutoff
 
 def get_bounds(domain, d):
@@ -24,87 +29,154 @@ def get_bounds(domain, d):
     return bounds
 
 # Part 2: mtgl test
+# Kernel is not the problem; integrand mismatch - quad supplying a point and kernel needs to be calculated point-wise. 
 
-def kernel(rho, sigma, x):
-    try:
-        d = len(x)
-    except:
-        d = 1
-    return sigma**(-d)*(((rho-1)/2)*(np.float_power(np.linalg.norm(x)+1,-rho)))
-
-def get_params(rho,x,y,sigma):
-    params = {
-    'rho': rho,
-    'x': x,
-    'y': y,
-    'sigma': sigma}
-    return params 
-
-def integrand(vars,params):
+def integrand(a, params):
+    """
+    a: tuple of floats of length d (from nquad or MC)
+    params: dictionary with keys 'rho', 'x', 'y', 'sigma'
+    """
     rho = params['rho']
-    sigma = params['sigma']
     x = params['x']
     y = params['y']
+    if x.ndim == 1:
+        x = x[:, np.newaxis]
+        y = y[:, np.newaxis]
+    a = np.array(a)  # shape (d,)
     n = len(x)
-    sum_ls = []
+    sum_vec = np.zeros_like(x[0])  # shape (d,) — initialize vector sum
+
     for i in range(n):
-        sum_ls.append(np.multiply(y[i]-x[i],kernel(rho,sigma,x-x[i])))
-    integrand = (1/n)*np.linalg.norm(sum(sum_ls))
-    return integrand
+        diff = a - x[i]  # shape (d,)
+        k_val = smoothing_function(rho, 1, diff)  # scalar
+        sum_vec += (y[i] - x[i]) * k_val  # shape (d,)
+
+    return np.linalg.norm(sum_vec) / n
 
 
-def mtgl_proj(params,lbd,ubd):
+def mtgl_proj(params, lbd, ubd):
     warnings.simplefilter("ignore")
     x = params['x']
-    try:
-        d=len(x[0])
-    except:
-        d = 1
-    if d==1:
-        f = lambda *vars: integrand(vars,params)
+    d = x.shape[1] if x.ndim > 1 else 1
+
+    if d == 1:
+        f = lambda a: integrand(a, params)
         I = quad(f, lbd, ubd)
     else:
-        bounds = get_bounds([lbd,ubd],d)
-        f = lambda *vars: integrand(vars,params)
+        bounds = get_bounds([lbd, ubd], d)
+        f = lambda *args: integrand(args, params)
         I = nquad(f, bounds)
+
     return I[0]
 
 
-def mtgl_test(params,lbd,ubd,conf,result):
-    bond = cutoff(result,conf)
+def mtgl_test(params, lbd, ubd, conf, result, display = True): # nquad version
+    bond = cutoff(result, conf)
     x = params['x']
     n = len(x)
-    proj = np.sqrt(n)*mtgl_proj(params,lbd,ubd)
+    proj = np.sqrt(n) * mtgl_proj(params, lbd, ubd)
     if proj <= bond:
-        print("Accept null hypothesis with ", conf, "% confidence.")
+        if display:
+            print(f"Accept null hypothesis with {conf}% confidence.")
         return proj, True
     else:
-        print("Reject null hypothesis with ", conf, "% confidence.")
+        if display:
+            print(f"Reject null hypothesis with {conf}% confidence.")
         return proj, False
+
     
-def asymp_rej_rate(n_sim,params,lbd,ubd,conf,result):
+
+# Monte Carlo projection estimate to imporvie high dimensional integration complexity
+def mtgl_proj_mc(params, lbd, ubd, n_samples=1000, seed=0):
+    np.random.seed(seed)
+    x = params['x']
+    d = x.shape[1] if x.ndim > 1 else 1
+    volume = (ubd - lbd) ** d
+
+    a_samples = np.random.uniform(lbd, ubd, size=(n_samples, d))
+
+    integrand_vals = np.array([
+        integrand(a, params) for a in tqdm(a_samples, desc="Evaluating integrand...")
+    ])
+
+    mc_estimate = volume * np.mean(integrand_vals)
+    return mc_estimate
+
+
+def mtgl_test_mc(params, lbd, ubd, conf, result, n_samples=1000, seed=0, display = True):
+    bond = cutoff(result, conf)
+    x = params['x']
+    n = len(x)
+    proj = np.sqrt(n) * mtgl_proj_mc(params, lbd, ubd, n_samples, seed)
+    if proj <= bond:
+        if display:
+            print(f"Accept null hypothesis with {conf}% confidence.")
+        return proj, True
+    else:
+        if display:
+            print(f"Reject null hypothesis with {conf}% confidence.")
+        return proj, False
+
+
+def asymp_rej_rate_mc(n_sim, params, lbd, ubd, conf, result, n_samples=1000): # explore impact of different seeds in monte carlo integration
+    """
+    Estimates asymptotic rejection rate of the MC martingale test.
+    """
     ls = []
     for i in range(n_sim):
-        if not mtgl_test(params,lbd,ubd,conf,result)[1]:
+        _, decision = mtgl_test_mc(params, lbd, ubd, conf, result, n_samples, seed = i)
+        if not decision:
             ls.append(1)
-    # return asymptotic rejection rate
-    count_false = sum(ls)
-    return count_false/n_sim
+    return sum(ls) / n_sim
 
-
-def power_curve(grid,n_sim,params,lbd,ubd,conf,result):
+def power_curve_mc(grid, n_sim, params, lbd, ubd, conf, result, n_samples=1000): # explore impact of different seeds in monte carlo integration
+    """
+    Plots power curve over a perturbation grid using MC version of the test.
+    """
     rej_rate = []
     rho = params['rho']
-    sigma = params['sigma']
     x = params['x']
-    y = params['y']  
-    p = len(grid)
-    for i in range(p):
-        y_copy = y+grid[i]
-        params = get_params(rho,x,y_copy,sigma)
-        rej_rate.append(asymp_rej_rate(n_sim,params,lbd,ubd,conf,result))
+    y = params['y']
     
-    plt.plot(grid,rej_rate)
+    for delta in grid:
+        y_shifted = y + delta
+        new_params = get_params(rho, x, y_shifted)
+        rate = asymp_rej_rate_mc(n_sim, new_params, lbd, ubd, conf, result, n_samples)
+        rej_rate.append(rate)
+
+    plt.plot(grid, rej_rate)
+    plt.xlabel("Shift / Perturbation magnitude")
+    plt.ylabel("Rejection rate")
+    plt.title("Power Curve (MC Version)")
+    plt.grid(True)
     plt.show()
+
     return grid, rej_rate
+
+
+# def power_curve_nquad(grid, params, lbd, ubd, conf, result):
+#     """
+#     Plots power curve over a perturbation grid using `nquad` version of the test.
+#     """
+#     rej_rate = []
+#     rho = params['rho']
+#     x = params['x']
+#     y = params['y']
+
+#     for delta in grid:
+#         y_shifted = y + delta
+#         new_params = get_params(rho, x, y_shifted)
+#         _, decision = mtgl_test(new_params, lbd, ubd, conf, result)
+#         rate = 1 if not decision else 0
+#         rej_rate.append(rate)
+
+#     plt.plot(grid, rej_rate)
+#     plt.xlabel("Shift / Perturbation magnitude")
+#     plt.ylabel("Rejection rate")
+#     plt.title("Power Curve (nquad Version)")
+#     plt.grid(True)
+#     plt.show()
+
+#     return grid, rej_rate
+
     

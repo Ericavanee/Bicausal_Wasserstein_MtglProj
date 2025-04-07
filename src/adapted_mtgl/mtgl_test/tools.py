@@ -6,10 +6,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import KDTree
 
+# utils for general
+def get_params(rho,x,y,sigma = 1):
+    params = {
+    'rho': rho,
+    'x': x,
+    'y': y,
+    'sigma': sigma}
+    return params 
+
 
 # (i). Implement the adapted empirical measure from https://arxiv.org/pdf/2002.07261
-def generate_samples(N, d, T):
+# do the convergence plot of the MPDs
+# uniform on interval (-1/2,1/2) = X, Z; Y = X+Z, X,Z iid
+def generate_samples(N, d, T, seed = 42):
     """Generate N i.i.d. samples X^n = (X^n_1, ..., X^n_T) in [0,1]^d."""
+    np.random.seed(seed)
     return np.random.rand(N, T, d)
 
 def compute_partition_grid(N, d, T):
@@ -54,9 +66,10 @@ def plot_measures(samples, mapped_samples, unique, probabilities):
     plt.show()
 
 if __name__ == '__main__':
-    d, T, N = 1, 2, 8
-    samples = generate_samples(N, d, T)
+    d, T, N = 2, 2, 27
+    samples = generate_samples(N, d, T) # d=2 we should have an unflattened grid.
     grid_centers = compute_partition_grid(N, d, T)
+    print(grid_centers)
     mapped_samples = map_to_grid(samples, grid_centers)
     unique, probabilities = compute_adapted_empirical_measure(mapped_samples)
     plot_measures(samples, mapped_samples, unique, probabilities)
