@@ -92,59 +92,43 @@ def plot_measures(samples, mapped_samples, unique, probabilities):
     plt.legend()
     plt.show()
 
+
+# def compute_adapted_mpd(X, Y, gamma=1):
+#     """
+#     Compute MPD(P, gamma) = 2^{1 - gamma} E[ ||X - E[Y | X]||^gamma ]
+#     using the adapted empirical measure. X, Y are (n, d) arrays.
+#     """
+#     n, d = X.shape
+#     T = 1
+#     grid_centers = compute_partition_grid(n, d, T)
+#     mapped_X = map_to_grid_flat(X, grid_centers)
+#     XY = np.concatenate([mapped_X, Y], axis=1)
+#     grouped = defaultdict(list)
+#     for i in range(n):
+#         key = tuple(mapped_X[i])
+#         grouped[key].append(Y[i])
+#     cond_expectation = {k: np.mean(v, axis=0) for k, v in grouped.items()}
+#     dist_gamma = [np.linalg.norm(X[i] - cond_expectation[tuple(mapped_X[i])]) ** gamma for i in range(n)]
+#     return 2 ** (1 - gamma) * np.mean(dist_gamma)
+
 def compute_adapted_mpd(X, Y, gamma=1):
     """
     Compute MPD(P, gamma) = 2^{1 - gamma} E[ ||X - E[Y | X]||^gamma ]
-    where expectation is taken under the adapted empirical measure.
-    Assumes X, Y are (n, d) and discrete.
-    """
-    from collections import defaultdict
-
-    n = X.shape[0]
-    d = X.shape[1] if X.ndim > 1 else 1
-
-    # Convert 1D to 2D for uniform handling
-    X = X.reshape(n, d)
-    Y = Y.reshape(n, d)
-
-    # Group Y values by X
-    groups = defaultdict(list)
-    for i in range(n):
-        key = tuple(X[i])
-        groups[key].append(Y[i])
-
-    # Compute conditional expectations
-    cond_expectation = {}
-    for key, values in groups.items():
-        cond_expectation[key] = np.mean(values, axis=0)
-
-    # Compute distances ||X - E[Y | X]||^gamma
-    dist_gamma = []
-    for i in range(n):
-        key = tuple(X[i])
-        y_bar = cond_expectation[key]
-        dist = np.linalg.norm(X[i] - y_bar) ** gamma
-        dist_gamma.append(dist)
-
-    # Compute final MPD value
-    mpd = 2 ** (1 - gamma) * np.mean(dist_gamma)
-    return mpd
-
-
-def compute_mpd_plugin(X, Y, gamma=1):
-    """
-    Compute MPD(P, gamma) = 2^{1 - gamma} E[ ||X - E[Y | X]||^gamma ]
     using the adapted empirical measure. X, Y are (n, d) arrays.
+    This version treats (X, Y) as a T=2 sequence but conditions only on adapted X.
     """
     n, d = X.shape
-    T = 1
+    T = 2
+    sequence = np.stack([X, Y], axis=1)  # shape (n, 2, d)
     grid_centers = compute_partition_grid(n, d, T)
-    mapped_X = map_to_grid_flat(X, grid_centers)
-    XY = np.concatenate([mapped_X, Y], axis=1)
+    mapped_sequence = map_to_grid(sequence, grid_centers)  # shape (n, 2, d)
+    mapped_X = mapped_sequence[:, 0]  # only use adapted X for conditioning
+
     grouped = defaultdict(list)
     for i in range(n):
         key = tuple(mapped_X[i])
         grouped[key].append(Y[i])
+
     cond_expectation = {k: np.mean(v, axis=0) for k, v in grouped.items()}
     dist_gamma = [np.linalg.norm(X[i] - cond_expectation[tuple(mapped_X[i])]) ** gamma for i in range(n)]
     return 2 ** (1 - gamma) * np.mean(dist_gamma)
@@ -155,7 +139,7 @@ def plot_adapted_mpd_convergence(num_ls, gamma=1, seed=42):
     for n in tqdm(num_ls, desc="Computing MPD"):
         X, Y = basic(n_samples=n, seed=seed)
         X, Y = X.reshape(-1, 1), Y.reshape(-1, 1)
-        mpd = compute_mpd_plugin(X, Y, gamma=gamma)
+        mpd = compute_adapted_mpd(X, Y, gamma=gamma)
         mpd_vals.append(mpd)
 
     plt.figure(figsize=(6, 4))
@@ -179,7 +163,7 @@ def plot_mpd_convergence_comparison(num_ls, rho=5, sigma=1, lbd=-50, ubd=50, gam
         smoothed_mpd = mtgl_proj(params, lbd, ubd)
 
         X, Y = X.reshape(-1, 1), Y.reshape(-1, 1)
-        mpd = compute_mpd_plugin(X, Y, gamma=gamma)
+        mpd = compute_adapted_mpd(X, Y, gamma=gamma)
 
         mpd_vals.append(mpd)
         smoothed_mpd_vals.append(smoothed_mpd)

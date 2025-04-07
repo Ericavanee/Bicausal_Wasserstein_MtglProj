@@ -6,10 +6,11 @@ from applications.markov.bdd_fun import *
 
 # 1.0 Simple Markov chain example
 
-def simple_Markov(T,rho):
+def simple_Markov(T,rho, seed = 0):
     X0 = 0
     ls = [X0]
     for i in range(T):
+        np.random.seed(seed)
         error = np.random.randn()
         ls.append(ls[i]*rho+error)
     return ls
@@ -67,7 +68,9 @@ def markov_coupling(T, rho, u_list):
 
 # 2.0 Adapted perpetual cash flow process example
 
-def compound_poisson_process_integrand(t, base_lambda=2, gamma_shape=2, gamma_scale=3):
+def compound_poisson_process_integrand(t, base_lambda=2, gamma_shape=2, gamma_scale=3, seed = 0):
+    np.random.seed(seed)
+
     # Adjust lambda based on t
     effective_lambda = base_lambda * t
     
