@@ -60,13 +60,14 @@ def generate_grid_points(dim, n_points, lower_bound, upper_bound):
 # input x is an array
 def smoothing_function(rho, sigma, diff):
     try:
-        d = len(diff[0])
+        #d = len(diff[0])
+        d = len(diff)
     except:
         d = 1
     if d == 1:
         normed_ls = np.abs(diff)
     else:
-        normed_ls = np.linalg.norm(diff, axis=1)  # cleaner and vectorized
+        normed_ls = np.linalg.norm(diff)  # cleaner and vectorized
     C_rho = (rho - 1) / 2
     return sigma**(-d) * C_rho * np.power(normed_ls / sigma + 1, -rho)
 
