@@ -7,6 +7,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from scipy.spatial import KDTree # finds nearest neighbor (centers) to group samples
 from collections import defaultdict
+from sklearn.cluster import KMeans
 
 from src.adapted_mtgl.utils import get_params
 from src.adapted_mtgl.mtgl_test.multiD import generate_uniform_martingale_coupling
@@ -97,62 +98,116 @@ def plot_measures(samples, unique, probabilities):
     plt.show()
 
 
-# def compute_adapted_mpd(X, Y, gamma=1):
-#     """
-#     Compute MPD(P, gamma) = 2^{1 - gamma} E_{\hat{\mu}}[ ||X - E_{\hat{\mu}}[Y | X]||^gamma ]
-#     where the expectation is taken under the adapted empirical measure based on X only.
-#     This version supports multi-dimensional X.
-#     """
-#     n, d = X.shape
 
-#     # Treat X as a T=1 sequence of d-dimensional samples
-#     X_seq = X[:, np.newaxis, :]  # shape (n, 1, d)
-#     grid_centers = compute_partition_grid(n, d, T=1)
-#     mapped_X_seq = map_to_grid(X_seq, grid_centers)  # shape (n, 1, d)
-#     mapped_X = mapped_X_seq[:, 0, :]  # shape (n, d)   c1: (Xi,yi)...c2: (xi',yi'), and c1,...,c2 is mapped using only Xi's not (xi,yi) because we take conditional expectation on X
+def empirical_k_means_measure(data, use_klist=0, klist=(), tol_decimals=6, use_weights=0, heuristic=0): # adapted directly from 
+    # use kmenas clustering to come up with center rather than using grid
+    (k, T_h) = data.shape
+    if not use_klist:
+        klist = (np.ones(T_h) * int(np.round(np.sqrt(k)))).astype(int)
 
-#     grouped = defaultdict(list)
-#     for i in range(n):
-#         key = tuple(mapped_X[i])
-#         grouped[key].append((X[i], Y[i]))
+    label_list = []
+    support_list = []
+    out_x = np.zeros([0, T_h])
+    out_w = []
 
-#     mpd_sum = 0.0
-#     for group in grouped.values():
-#         xs = np.array([x for x, _ in group])
-#         ys = np.array([y for _, y in group])
-#         print(xs,ys)
-#         y_mean = np.mean(ys, axis=0)
-#         mpd_sum += np.sum(np.linalg.norm(xs - y_mean, axis=1) ** gamma)
+    if heuristic:
+        for t in range(T_h):
+            data_t = data[:, t]
+            inds_sort_t = np.argsort(data_t)
+            datas_t = data_t[inds_sort_t]
+            n_av = int(np.round(k / klist[t]))
+            lmax = int(np.floor(n_av * klist[t]))
+            all_but_end = np.reshape(datas_t[:lmax], (-1, n_av))
+            mean_all_but = np.mean(all_but_end, axis=1, keepdims=1)
+            cx = mean_all_but
+            mean_all_but = np.tile(mean_all_but, (1, n_av))
+            mean_all_but = np.reshape(mean_all_but, (-1, 1))
+            mean_rest = np.mean(datas_t[lmax:])
+            if lmax < k:
+                mean_vec = np.concatenate([np.squeeze(mean_all_but), np.array([mean_rest])])
+                cx = np.concatenate([cx, np.array([mean_rest])])
+            else:
+                mean_vec = np.squeeze(mean_all_but)
+            lx = np.zeros(k, dtype=int)
+            for i in range(k):
+                for j in range(len(cx)):
+                    if mean_vec[inds_sort_t[i]] == cx[j]:
+                        lx[i] = j
+                        continue
+            label_list.append(lx)
+            support_list.append(cx)
 
-#     return 2 ** (1 - gamma) * mpd_sum / n
+    else:
+        for t in range(T_h):
+            data_t = data[:, t:t+1]
+            kmx = KMeans(n_clusters=klist[t]).fit(data_t)
+            cx = kmx.cluster_centers_
+            cx = np.round(cx, decimals=tol_decimals)
+            lx = kmx.labels_
+            label_list.append(lx)
+            support_list.append(cx)
 
-def compute_adapted_mpd(X, Y, gamma=1):
+    if use_weights == 0:
+        out = np.zeros([k, T_h])
+        for t in range(T_h):
+            out[:, t] = support_list[t][label_list[t]][:, 0]
+        return out
+
+    for i in range(k):
+        cur_path = np.zeros(T_h)
+        for t in range(T_h):
+            cur_path[t] = support_list[t][label_list[t][i]]
+
+        path_is_here = 0
+        for j in range(len(out_w)):
+            if np.all(out_x[j, :] == cur_path):
+                out_w[j] += 1 / k
+                path_is_here = 1
+                break
+        if not path_is_here:
+            out_x = np.append(out_x, np.expand_dims(cur_path, axis=0), axis=0)
+            out_w.append(1 / k)
+
+    return out_x, out_w
+
+
+def compute_adapted_mpd(X, Y, method = 'grid', gamma=1):
     """
     Compute MPD(P, gamma) = 2^{1 - gamma} E_{\hat{\mu}}[ ||\varphi^N(X) - E_{\hat{\mu}}[\varphi^N(Y) | \varphi^N(X)]||^gamma ]
     where the expectation is taken under the adapted empirical measure based on mapped X and mapped Y.
     This version supports multi-dimensional X and Y.
+    Uses K-means adapted empirical measure for flexible partitioning.
     """
     n, d = X.shape
 
-    # Stack (X, Y) as a T=2 trajectory for joint mapping
-    sequence = np.stack([X, Y], axis=1)  # shape (n, 2, d)
-    grid_centers = compute_partition_grid(n, d, T=2)
-    mapped_sequence = map_to_grid(sequence, grid_centers)  # shape (n, 2, d)
+    if method == 'kmeans':
+        X_Y = np.concatenate([X, Y], axis=1)  # shape (n, 2d)
+        mapped_XY = empirical_k_means_measure(X_Y, use_weights=0)  # shape (n, 2d)
 
-    mapped_X = mapped_sequence[:, 0, :]
-    #print(mapped_X)
-    mapped_Y = mapped_sequence[:, 1, :]
-    #print(mapped_Y)
+        mapped_X = mapped_XY[:, :d]  # shape (n, d)
+        mapped_Y = mapped_XY[:, d:]  # shape (n, d)
+    elif method == 'grid':
+        # Stack (X, Y) as a T=2 trajectory for joint mapping
+        sequence = np.stack([X, Y], axis=1)  # shape (n, 2, d)
+        grid_centers = compute_partition_grid(n, d, T=2)
+        mapped_sequence = map_to_grid(sequence, grid_centers)  # shape (n, 2, d)
 
-    # # Map X and Y separately using T=1
-    # X_seq = X[:, np.newaxis, :]  # shape (n, 1, d)
-    # Y_seq = Y[:, np.newaxis, :]  # shape (n, 1, d)
+        mapped_X = mapped_sequence[:, 0, :]
+        #print(mapped_X)
+        mapped_Y = mapped_sequence[:, 1, :]
+        #print(mapped_Y)
 
-    # grid_centers = compute_partition_grid(n, d, T=1)
-    # mapped_X1 = map_to_grid(X_seq, grid_centers)[:, 0, :]  # shape (n, d)
-    # # print(mapped_X)
-    # mapped_Y1 = map_to_grid(Y_seq, grid_centers)[:, 0, :]  # shape (n, d)
-    # #print(mapped_Y)
+        # # Map X and Y separately using T=1
+        # X_seq = X[:, np.newaxis, :]  # shape (n, 1, d)
+        # Y_seq = Y[:, np.newaxis, :]  # shape (n, 1, d)
+
+        # grid_centers = compute_partition_grid(n, d, T=1)
+        # mapped_X1 = map_to_grid(X_seq, grid_centers)[:, 0, :]  # shape (n, d)
+        # # print(mapped_X)
+        # mapped_Y1 = map_to_grid(Y_seq, grid_centers)[:, 0, :]  # shape (n, d)
+        # #print(mapped_Y)
+    else:
+        raise Exception("Choose either 'grid' or 'kmenas' for method.")
 
     grouped = defaultdict(list)
     for i in range(n):
@@ -162,23 +217,21 @@ def compute_adapted_mpd(X, Y, gamma=1):
     mpd_sum = 0.0
     for key, y_vals in grouped.items():
         g = np.array(key)
-        # print(f'x center: {g}')
         y_mean = np.mean(y_vals, axis=0)
-        # print(y_vals)
         dist = np.linalg.norm(g - y_mean) ** gamma
         mpd_sum += len(y_vals) * dist
 
     return 2 ** (1 - gamma) * mpd_sum / n
 
 
-def plot_adapted_mpd_convergence(num_ls, d=1, gamma=1, seed=0, mpd_vals = None):
+def plot_adapted_mpd_convergence(num_ls, method = 'grid', d=1, gamma=1, seed=0, mpd_vals = None):
     if not mpd_vals:
         mpd_vals = []
         for n in tqdm(num_ls, desc="Computing MPD"):
             X, Y = generate_uniform_martingale_coupling(n_samples=n, d=d, seed=seed)
             if d==1:
                 X, Y = X.reshape(-1, 1), Y.reshape(-1, 1)
-            mpd = compute_adapted_mpd(X, Y, gamma=gamma)
+            mpd = compute_adapted_mpd(X, Y, method = method, gamma=gamma)
             mpd_vals.append(mpd)
 
     # Linear plot
@@ -190,19 +243,31 @@ def plot_adapted_mpd_convergence(num_ls, d=1, gamma=1, seed=0, mpd_vals = None):
     plt.grid(True)
     plt.show()
 
+    lines = []
     # Log-log plot
     plt.figure(figsize=(6, 4))
     plt.loglog(num_ls, mpd_vals, marker='o')
+    ref_x = np.array(num_ls)
+    ref_y = ref_x ** (-0.5) * mpd_vals[0] / (num_ls[0] ** -0.5)
+    ref_line1, = plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/2}$ reference")
+    lines.append(ref_line1)
+    # Reference line for n^{-1/(2d)}
+    ref_x = np.array(num_ls)
+    rate = -1 / (2 * d)
+    ref_y = ref_x ** rate * mpd_vals[0] / (num_ls[0] ** rate)
+    ref_line2, = plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/2d}$ reference")
+    lines.append(ref_line2)
 
     plt.xlabel("log(Number of Samples)")
     plt.ylabel("log(MPD Value)")
     plt.title("Log-Log Convergence of Adapted MPD")
     plt.grid(True, which='both', linestyle='--')
+    plt.legend(handles=lines, loc='best')
     plt.show()
 
     return mpd_vals
 
-def plot_mpd_convergence_comparison(num_ls, d=1, rho=5, sigma=1, lbd=-50, ubd=50, gamma=1, seed=42, mpd_vals=None, smoothed_mpd_vals=None):
+def plot_mpd_convergence_comparison(num_ls, method = 'grid', d=1, rho=5, sigma=1, lbd=-50, ubd=50, gamma=1, seed=42, mpd_vals=None, smoothed_mpd_vals=None):
     """
     Compare convergence of adapted MPD vs smoothed MPD across sample sizes.
     Allows reuse of existing results if provided.
@@ -225,7 +290,7 @@ def plot_mpd_convergence_comparison(num_ls, d=1, rho=5, sigma=1, lbd=-50, ubd=50
             if recompute_mpd:
                 if d ==1:
                     X, Y = X.reshape(-1, 1), Y.reshape(-1, 1)
-                mpd = compute_adapted_mpd(X, Y, gamma=gamma)
+                mpd = compute_adapted_mpd(X, Y, method, gamma=gamma)
                 mpd_vals.append(mpd)
 
     # Linear plot
@@ -248,6 +313,13 @@ def plot_mpd_convergence_comparison(num_ls, d=1, rho=5, sigma=1, lbd=-50, ubd=50
         ref_x = np.array(num_ls)
         ref_y = ref_x ** (-0.5) * mpd_vals[0] / (num_ls[0] ** -0.5)
         plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/2}$ reference")
+
+    # Reference line for n^{-1/(2d)}
+    if mpd_vals:
+        ref_x = np.array(num_ls)
+        rate = -1 / (2 * d)
+        ref_y = ref_x ** rate * mpd_vals[0] / (num_ls[0] ** rate)
+        plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/2d}$ reference")
 
     plt.xlabel("log(Number of Samples)")
     plt.ylabel("log(MPD Value)")
