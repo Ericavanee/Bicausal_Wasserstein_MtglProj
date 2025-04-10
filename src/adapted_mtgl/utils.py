@@ -12,6 +12,12 @@ def get_params(rho,x,y,sigma = 1):
     'sigma': sigma}
     return params 
 
+def save_list_to_txt(result, save_dir):
+    with open(save_dir, 'w') as f:
+        for item in result:
+            f.write(f"{item}\n")
+    print('Your list has been saved.')
+
 def load_txt_as_matrix(file_path, delimiter=None, dtype=float):
     """
     Loads a 2D data text file as a NumPy ndarray.
