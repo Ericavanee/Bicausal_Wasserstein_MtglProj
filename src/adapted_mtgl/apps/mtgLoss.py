@@ -1,28 +1,10 @@
 """
 This script implements functions for option pricing and loss evaluation based on the Heston model. 
-It includes Monte Carlo-based pricing of vanilla and exotic options and martingale projection-based loss functions for calibration.
+It includes martingale projection-based loss functions for calibration.
 """
 
 import numpy as np
-
-
-def kernel(rho, x, sigma=1):
-    """
-    Computes a kernel function used for loss computation in one-dimensional (d=1) settings.
-
-    The kernel is defined as a power-law decay function, which scales the input `x` 
-    based on the smoothing parameter `rho`. The optional parameter `sigma` acts as a 
-    scaling factor.
-
-    Parameters:
-    - rho (float): Smoothing parameter that controls the decay rate of the kernel.
-    - x (ndarray or scalar): Input values (can be a scalar or an array).
-    - sigma (float, optional): Scaling factor applied to the kernel (default: 1).
-
-    Returns:
-    - ndarray or float: Element-wise computed kernel values based on `x`.
-    """
-    return sigma * ((rho - 1) / 2) * np.float_power(np.abs(x) + 1, -rho)
+from src.adapted_mtgl.mtgl_test.multiD import smoothing_function
 
 
 
@@ -49,7 +31,7 @@ def mtgLoss_vanilla(rho, calibrated_payoff, market_price):
         for j in range(num_iter):
             # Compute difference between calibrated and market payoffs
             diff = calibrated_payoff[maturity_idx][j].T.reshape(num_strikes, 1) - market_price[maturity_idx][j]
-            kernel_weighted_diff = np.multiply(diff, kernel(rho, diff))
+            kernel_weighted_diff = np.multiply(diff, smoothing_function(rho, 1, diff))
             loss_per_iter.append(np.sum(kernel_weighted_diff**2))
 
         total_loss += sum(loss_per_iter)
@@ -79,12 +61,12 @@ def mtgLoss_pair(rho, calibrated_payoff, market_price, summation=False):
     # Compute vanilla option loss
     for maturity_idx in range(num_maturities):
         diff = calibrated_payoff[1][maturity_idx] - market_price[1][maturity_idx]
-        kernel_weighted_diff = np.multiply(diff, kernel(rho, diff))
+        kernel_weighted_diff = np.multiply(diff, smoothing_function(rho, 1, diff))
         vanilla_loss += np.sum(kernel_weighted_diff**2)
 
     # Compute exotic option loss
     exotic_diff = calibrated_payoff[0] - market_price[0]
-    exotic_kernel_weighted_diff = np.multiply(exotic_diff, kernel(rho, exotic_diff))
+    exotic_kernel_weighted_diff = np.multiply(exotic_diff, smoothing_function(rho, 1, exotic_diff))
     exotic_loss = np.sum(exotic_kernel_weighted_diff**2)
 
     if summation:
