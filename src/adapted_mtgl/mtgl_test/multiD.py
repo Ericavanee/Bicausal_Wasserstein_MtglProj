@@ -9,36 +9,7 @@ from scipy.integrate import nquad
 from scipy.integrate import quad
 from tqdm import tqdm
 import scipy.integrate as integrate
-
-# for discrete example of martingale coupling
-def generate_uniform_martingale_coupling(n_samples, d=1, seed=42):
-    """
-    Generate (X, Y) where X ~ U(-1/2, 1/2)^d and Y = X + Z with Z ~ U(-1/2, 1/2)^d
-    X, Z independent, so E[Y | X] = X (martingale coupling).
-    """
-    np.random.seed(seed)
-    X = np.random.uniform(-0.5, 0.5, size=(n_samples, d)) # -0.5,0.5
-    Z = np.random.uniform(-0.5, 0.5, size=(n_samples, d))
-    Y = X + Z
-    return X, Y
-
-# basic helper 1-dimensional martingale coupling generator (X,Y)
-def basic(n_samples, seed = 42):
-    np.random.seed(seed)
-    x = np.random.normal(0,1,n_samples)
-    z = np.random.normal(0,1,n_samples)
-    y = np.add(z, x)
-    return x,y
-
-# basic helper multi-dimensional martingale coupling generator (X,Y)
-def basic_multi(n_samples,d, seed = 42):
-    np.random.seed(seed)
-    mean = np.zeros(d)
-    cov = np.eye(d)
-    x = np.random.multivariate_normal(mean, cov, n_samples)
-    z = np.random.multivariate_normal(mean, cov, n_samples)
-    y = np.add(z, x)
-    return x,y
+from src.adapted_mtgl.mtgl_test.mtgl_couplings import basic, generate_uniform_martingale_coupling, basic_multi
 
 def generate_grid_points(dim, n_points, lower_bound, upper_bound):
     """

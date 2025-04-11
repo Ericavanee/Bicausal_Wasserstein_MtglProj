@@ -60,8 +60,7 @@ class AsympParams:
 
 @dataclass
 class SmoothedMpdParams:
-    X: np.ndarray = field(metadata={"help": "Input data samples X of shape (n, d)."})
-    Y: np.ndarray = field(metadata={"help": "Input data samples Y of shape (n, d)."})
+    test_data: str = field(metadata={"help": "Path to .npz file containing both X and Y arrays, each of shape (n, d)."})
     rho: float = field(default=5.0, metadata={"help": "Smoothing kernel parameter."})
     lbd: float = field(default=-50.0, metadata={"help": "Lower bound of integration domain."})
     ubd: float = field(default=50.0, metadata={"help": "Upper bound of integration domain."})
@@ -71,17 +70,10 @@ class SmoothedMpdParams:
             "help": "Method of calculating the smoothed MPD: either 'mc' for Monte Carlo integration, or 'nquad' for multidimensional integration using nquad."
         }
     )
-    
     n_sim: int = field(
         default=1000,
         metadata={"help": "Number of Monte Carlo simulations (used only if method='mc')."}
     )
-    
-    n_grid: int = field(
-        default=100,
-        metadata={"help": "Total number of grid points for integration (used only if method='nquad')."}
-    )
-
     seed: int = field(
         default=42,
         metadata={"help": "Random seed for Monte Carlo simulation (used only if method='mc')."}
@@ -92,19 +84,18 @@ class SmoothedMpdParams:
             if self.n_sim <= 0:
                 raise ValueError("n_sim must be positive when using Monte Carlo integration.")
         elif self.method == 'nquad':
-            if self.n_grid <= 0:
-                raise ValueError("n_grid must be positive when using nquad integration.")
+            pass
         else:
-            raise ValueError("method must be either 'mc' or 'nquad'")
-        
+            raise ValueError("method must be either 'mc' or 'nquad'.")
+
+
 @dataclass
 class AdaptedMpdParams:
-    X: np.ndarray = field(metadata={"help": "Input data samples X of shape (n, d)."})
-    Y: np.ndarray = field(metadata={"help": "Input data samples Y of shape (n, d)."})
+    test_data: str = field(metadata={"help": "Path to .npz file containing both X and Y arrays, each of shape (n, d)."})
     method: str = field(default='grid', metadata={"help": "Method for calculating the center: choose 'grid' for using a fixed grid as reference, or 'kmeans' which uses KMeans clustering."})
-    gamma: int = field(default = 1, metadata = {"help": "Gamma parameter (must be greater than or equal to 1)"})
+    gamma: int = field(default=1, metadata={"help": "Gamma parameter (must be greater than or equal to 1)"})
 
     def __post_init__(self):
-        if self.method != 'grid' and self.method != 'kmeans' :
+        if self.method not in ['grid', 'kmeans']:
             raise ValueError("method must be either 'grid' or 'kmeans'")
 

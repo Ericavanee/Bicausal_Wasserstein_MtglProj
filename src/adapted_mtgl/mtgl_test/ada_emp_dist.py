@@ -10,7 +10,7 @@ from collections import defaultdict
 from sklearn.cluster import KMeans
 
 from src.adapted_mtgl.utils import get_params
-from src.adapted_mtgl.mtgl_test.multiD import generate_uniform_martingale_coupling
+from src.adapted_mtgl.mtgl_test.mtgl_couplings import generate_uniform_martingale_coupling
 from src.adapted_mtgl.mtgl_test.mtgl import mtgl_proj, mtgl_proj_mc
 
 # do the convergence plot of the MPDs
@@ -356,10 +356,10 @@ def plot_mpd_convergence_comparison(num_ls, method = 'grid', d=1, rho=5, sigma=1
 
 
 # if __name__ == '__main__':
-#     # d, T, N = 2, 2, 27
-#     # samples = generate_samples(N, d, T)
-#     # grid_centers = compute_partition_grid(N, d, T)
-#     # print(grid_centers)
+#     d, T, N = 2, 2, 27
+#     samples = generate_samples(N, d, T)
+#     grid_centers = compute_partition_grid(N, d, T)
+#     print(grid_centers)
 #     # mapped_samples = map_to_grid(samples, grid_centers)
 #     # unique, probabilities = compute_adapted_empirical_measure(mapped_samples)
 #     # plot_measures(samples, mapped_samples, unique, probabilities)
