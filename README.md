@@ -40,3 +40,18 @@ payoff estimated by coniditioning on $S_0$.
         - `mc` which supports monte carlo simulation to approximate the integral. This scales much more effectively and is to be preferred to `nquad` especially in high dimensions. 
     - **`src/adapted_mtgl/mtgl_test/mtgl.py`** contains the source function for implementing the SE-MPD martingale coupling test.
 
+# Citation
+
+If you find this repository helpful in your research or applications, please consider citing our paper:
+
+```bibtex
+@misc{blanchet2024empiricalmartingaleprojectionsadapted,
+  title={Empirical martingale projections via the adapted Wasserstein distance}, 
+  author={Jose Blanchet and Johannes Wiesel and Erica Zhang and Zhenyuan Zhang},
+  year={2024},
+  eprint={2401.12197},
+  archivePrefix={arXiv},
+  primaryClass={math.PR},
+  url={https://arxiv.org/abs/2401.12197}
+}
+
