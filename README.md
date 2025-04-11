@@ -1,5 +1,5 @@
 # Bicausal Wasserstein Martingale Projection
-The *bicausal* or *adapted* Wasserstein martingale projection is a novel method for multi-dimensional martingale tests on data couplings. It achieves a dimension-independent convergence rate of $O(N^{1/2})$ in sample size $N$. To the best of our knowledge, it is the first **consistent** martingality test for high-dimensional regimes.
+The *bicausal* or *adapted* Wasserstein martingale projection is a novel method for multi-dimensional martingale tests on data couplings. It relies on the *smoothed empirical martingale projection distance* as its test statistic, which achieves a dimension-independent convergence rate of $O(N^{1/2})$ in the sample size $N$. To the best of our knowledge, it is the first **consistent** martingality test for high-dimensional regimes.
 
 🔗 Paper link: [Empirical martingale projections via the adapted Wasserstein distance](https://arxiv.org/pdf/2401.12197)
 
@@ -13,12 +13,11 @@ Given a collection of multidimensional pairs $\{(X_i,Y_i)\}_{1 \leq i\leq n}$, w
 
 <p align="center">
   <em>Figure:</em> Log-log convergence comparison between the adapted MPD (based on the 
-  <a href="https://arxiv.org/abs/2002.07261" target="_blank"><em>adapted empirical distance</em></a>) 
+  <a href="https://arxiv.org/abs/2002.07261" target="_blank"><em>adapted empirical measure</em></a>) 
   and the smoothed MPD (<em>ours</em>) for <em>d = 1</em> (left) and <em>d = 3</em> (right).
 </p>
 
 # Repo Structure
-IN PROGRESS
 - **`scripts`**: `python` scripts for getting calibrated stock and variance trajectory using neural-SDE as followed by the pipeline developed by [Gierjatowicz et. al.](https://arxiv.org/abs/2007.04154) and getting couplings of **actual** call options payoff calculated via a nested MC conditioning on the stock price $S_t$ at each intermediate time $t$ and the
 payoff estimated by coniditioning on $S_0$.
 
