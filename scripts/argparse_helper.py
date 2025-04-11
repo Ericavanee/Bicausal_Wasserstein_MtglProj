@@ -40,3 +40,71 @@ class OptionParam:
     stock_init: float = field(default=1.0, metadata={"help": "Initial stock price."})
     rate: float = field(default=0.025, metadata={"help": "Risk-free rate."})
 
+@dataclass
+class AsympParams:
+    n: int = field(default=100, metadata={"help": "Total number of grid points."})
+    d: int = field(default=1, metadata={"help": "Dimension of test."})
+    n_sim: int = field(default=100, metadata={"help": "Total number of simulations."})
+    domain: list[float] = field(default_factory=lambda: [-50.0, 50.0], metadata={"help": "Domain of integration as [lbd, ubd]."})
+    sigma: float = field(default=1.0, metadata={"help": "Standard deviation parameter (must be positive)."})
+    rho: float = field(default=5.0, metadata={"help": "Kernel parameter."})
+    save: bool = field(default=True, metadata={"help": "Whether to save simulation results."})
+    save_dir: str = field(default="sim_data", metadata={"help": "Directory to save simulation results."})
+    seed: int = field(default=42, metadata={"help": "Random seed for reproducibility."})
+    integration_method: str = field(default='trapez', metadata={"help": "Method of multivariate integration: must be either 'quad', 'trapez,' or 'simps.'"})
+
+    def __post_init__(self):
+        if self.d > 1:
+            if self.integration_method != 'trapez' and self.integration_method != 'quad' and self.integration_method != 'simps':
+                raise ValueError("method must be either 'quad', 'trapez,' or 'simps.'")
+
+@dataclass
+class SmoothedMpdParams:
+    X: np.ndarray = field(metadata={"help": "Input data samples X of shape (n, d)."})
+    Y: np.ndarray = field(metadata={"help": "Input data samples Y of shape (n, d)."})
+    rho: float = field(default=5.0, metadata={"help": "Smoothing kernel parameter."})
+    lbd: float = field(default=-50.0, metadata={"help": "Lower bound of integration domain."})
+    ubd: float = field(default=50.0, metadata={"help": "Upper bound of integration domain."})
+    method: str = field(
+        default='mc',
+        metadata={
+            "help": "Method of calculating the smoothed MPD: either 'mc' for Monte Carlo integration, or 'nquad' for multidimensional integration using nquad."
+        }
+    )
+    
+    n_sim: int = field(
+        default=1000,
+        metadata={"help": "Number of Monte Carlo simulations (used only if method='mc')."}
+    )
+    
+    n_grid: int = field(
+        default=100,
+        metadata={"help": "Total number of grid points for integration (used only if method='nquad')."}
+    )
+
+    seed: int = field(
+        default=42,
+        metadata={"help": "Random seed for Monte Carlo simulation (used only if method='mc')."}
+    )
+
+    def __post_init__(self):
+        if self.method == 'mc':
+            if self.n_sim <= 0:
+                raise ValueError("n_sim must be positive when using Monte Carlo integration.")
+        elif self.method == 'nquad':
+            if self.n_grid <= 0:
+                raise ValueError("n_grid must be positive when using nquad integration.")
+        else:
+            raise ValueError("method must be either 'mc' or 'nquad'")
+        
+@dataclass
+class AdaptedMpdParams:
+    X: np.ndarray = field(metadata={"help": "Input data samples X of shape (n, d)."})
+    Y: np.ndarray = field(metadata={"help": "Input data samples Y of shape (n, d)."})
+    method: str = field(default='grid', metadata={"help": "Method for calculating the center: choose 'grid' for using a fixed grid as reference, or 'kmeans' which uses KMeans clustering."})
+    gamma: int = field(default = 1, metadata = {"help": "Gamma parameter (must be greater than or equal to 1)"})
+
+    def __post_init__(self):
+        if self.method != 'grid' and self.method != 'kmeans' :
+            raise ValueError("method must be either 'grid' or 'kmeans'")
+

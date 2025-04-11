@@ -7,6 +7,7 @@ from itertools import product
 from scipy.interpolate import Rbf
 from scipy.integrate import nquad
 from scipy.integrate import quad
+from tqdm import tqdm
 import scipy.integrate as integrate
 
 # for discrete example of martingale coupling
@@ -70,18 +71,21 @@ def generate_grid_points(dim, n_points, lower_bound, upper_bound):
 # aka: kernel
 # input x is an array
 def smoothing_function(rho, sigma, diff):
+    n = len(diff)
     try:
         #d = len(diff[0])
-        d = len(diff)
+        d = len(diff[0])
     except:
         d = 1
-    if d == 1:
-        normed_ls = np.abs(diff)
-    else:
-        normed_ls = np.linalg.norm(diff)  # cleaner and vectorized
-    C_rho = (rho - 1) / 2
-    return sigma**(-d) * C_rho * np.power(normed_ls / sigma + 1, -rho)
-
+    result = []
+    for i in range(n):
+        if np.linalg.norm(diff[i]) <= sigma:
+            result.append(sigma ** (-d))
+        else:
+            # double check if it is np.linalg.norm
+            result.append((sigma ** (rho - d)) * ((rho - 1) / 2)*np.float_power((np.linalg.norm(diff[i]) + 1), -rho))
+            
+    return result
 
 def smooth1D(rho, sigma, x):
     d=1
@@ -209,7 +213,7 @@ def simulate_integral_distribution(n, n_sim, domain, sigma, rho, save = True, sa
     cov_matrix = covariance_mat(grid,X,Y,sigma,rho)
     samples = np.abs(np.random.multivariate_normal(mean, cov_matrix, size = n_sim)) # take the absolute value
     integral_ls = []
-    for i in range(n_sim):
+    for i in tqdm(range(n_sim), desc = "Running simulations..."):
         integral_ls.append(integrate.simps(samples[i], grid))
         
     integral_ls = np.array(integral_ls) # cast as array
@@ -230,17 +234,17 @@ def simulate_integral_distribution(n, n_sim, domain, sigma, rho, save = True, sa
 
 # integrate a list of scalar values over a corresponding list of fixed grid points
 # includes option for 1D, and provides a variety of methods for integration
-def simulate_integral_multi(domain, n_points, X, Y, sigma, rho, n_sim, method = 'trapez'):
-    try:
-        d = len(X[0])
-    except:
-        d = 1
+def simulate_integral_multi(domain, n_points, d, sigma, rho, n_sim, method = 'trapez', save = True, save_dir = "sim_data", seed = 42):
+    if d ==1:
+        X,Y = basic(n_sim, seed)
+    else:
+        X, Y = basic_multi(n_sim, d, seed)
     domain_bounds = [domain] * d # common domain
     grid = np.array(generate_grid_points(d, n_points, domain[0], domain[1]))
     samples = generate_multi_GRF(grid, X, Y, sigma, rho, n_sim)
     integral_ls = []
     if d == 1:
-        for i in range(n_sim):
+        for i in tqdm(range(n_sim), desc = "Running simulations..."):
             # use quad (highest complexity)
             if method == 'quad':
                 func = Rbf(grid, samples[i], function='linear') 
@@ -254,7 +258,7 @@ def simulate_integral_multi(domain, n_points, X, Y, sigma, rho, n_sim, method = 
                 raise ValueError("Method must be either 'quad', 'trapez,' or 'simps.'")
             integral_ls.append(result)
     else:        
-        for i in range(n_sim):
+        for i in tqdm(range(n_sim), desc = "Running simulations..."):
             # Interpolate using RBF
             func = fit_rbf(samples[i], grid)
             result = integrate_rbf(func, domain_bounds)
@@ -266,6 +270,14 @@ def simulate_integral_multi(domain, n_points, X, Y, sigma, rho, n_sim, method = 
     
     print(f"Mean of the integral: {mean_integral}")
     print(f"Variance of the integral: {var_integral}") 
+
+    if save:
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        save_name = f"d{d}rho{rho}sig{sigma}p{n_points}n{n_sim}seed{seed}.txt"
+        save_path = os.path.join(save_dir, save_name)
+        np.savetxt(save_path, integral_ls)
+
     return integral_ls
 
 

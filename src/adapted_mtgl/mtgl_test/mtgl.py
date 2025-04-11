@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 from scipy.integrate import nquad
 from scipy.integrate import quad
 from tqdm import tqdm
-from src.adapted_mtgl.mtgl_test.multiD import smoothing_function
 from src.adapted_mtgl.utils import get_params
 
 warnings.filterwarnings("ignore")
@@ -26,6 +25,20 @@ def get_bounds(domain, d):
     lbd, ubd = domain
     bounds = [(lbd, ubd) for _ in range(d)]
     return bounds
+
+def kernel(rho, sigma, diff):
+    try:
+        #d = len(diff[0])
+        d = len(diff)
+    except:
+        d = 1
+    if d == 1:
+        normed_ls = np.abs(diff)
+    else:
+        normed_ls = np.linalg.norm(diff)  # cleaner and vectorized
+    C_rho = (rho - 1) / 2
+    return sigma**(-d) * C_rho * np.power(normed_ls / sigma + 1, -rho)
+
 
 # Part 2: mtgl test
 # Kernel is not the problem; integrand mismatch - quad supplying a point and kernel needs to be calculated point-wise. 
@@ -47,7 +60,7 @@ def integrand(a, params):
 
     for i in range(n):
         diff = a - x[i]  # shape (d,)
-        k_val = smoothing_function(rho, 1, diff)  # scalar
+        k_val = kernel(rho, 1, diff)  # scalar
         sum_vec += (y[i] - x[i]) * k_val  # shape (d,)
 
     return np.linalg.norm(sum_vec) / n
