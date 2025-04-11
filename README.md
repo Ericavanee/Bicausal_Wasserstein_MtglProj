@@ -14,7 +14,7 @@ Given a collection of multidimensional pairs $\{(X_i,Y_i)\}_{1 \leq i\leq n}$, w
 <p align="center">
   <em>Figure:</em> Log-log convergence comparison between the adapted MPD (based on the 
   <a href="https://arxiv.org/abs/2002.07261" target="_blank"><em>adapted empirical measure</em></a>) 
-  and the smoothed MPD (<em>ours</em>) for <em>d = 1</em> (left) and <em>d = 3</em> (right).
+  and the smoothed MPD (<em>ours</em>) for <em>d = 1</em> (left) and <em>d = 3</em> (right), using Uniform[-0.5,0.5] increments.
 </p>
 
 # Repo Structure
