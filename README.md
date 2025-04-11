@@ -25,6 +25,18 @@ payoff estimated by coniditioning on $S_0$.
     - **`run_adapted_LV.py`**: Run **`adapted_LV.py`** to get stock and variance trajectory calibrated via the LV neural-SDE model.
     - **`run_adapted_LSV.py`**: Run **`adapted_LV.py`** to get stock and variance trajectory calibrated via the LSV neural-SDE model.
     - **`heston_coupling.py`**: Run **`adapted_LV.py`** to get couplings of **actual** call options payoff calculated via a nested MC conditioning on the stock price $S_t$ at each intermediate time $t$ and the payoff estimated by coniditioning on $S_0$ using a given calibrated stock trajectory.
+    - **`run_asymptotics.py`**: Run **`run_asymptotics.py`** to simulate the SE-MPD test statistic distribution. This is then used to produce the cutoff values one uses to conduct the martingale test.
+    - **`run_adapted_mpd.py`**, **`run_smoothed_mpd.py`**: Run **`run_adapted_mpd.py`**, **`run_smoothed_mpd.py`** respectively to calculate the adapted empirical MPD and the SE-MPD of a given test couplings dataset.
 - **`demos`**: `jupyter` tutorials for functionalities implemented in the repo. It includes demos for running the applications (such as `nsde_calibration.ipynb` for options pricing calibration) and various simulations (see `simulation.ipynb`).
-- **`src`**: `python` source scripts for running the martingale test. 
+    - **`simulation.ipynb`** explores the effect of $\sigma$ in the SE-MPD test statistic.
+    - **`synthetic_experiment.ipynb`** gives examples of conducting the multidimensional martingale coupling test using SE-MPD.
+    - **`adapted_empirical_distance.ipynb`** explores the convergence property of SE-MPD in juxtaposition to the adapted empirical MPD.
+    - **`nsde_calibration`** gives examples on how one calibrates vanilla European option prices using the apartus given by [Gierjatowicz et. al.](https://arxiv.org/abs/2007.04154) and how one obtains the (market_price, payoff) couplings for the martingale coupling test to validate the efficacy of the option calibration procedure. 
+    - **`markov`** gives examples of conducting mutlidimensional SE-MPD based martingale test on markov chain couplings
+- **`src`**: `python` source scripts for running the martingale test. We highlight a few items.
+    - **`src/adapted_mtgl/mtgl_test/simulated_data`** contains pre-simulated SE-MPD test statistic distribution for given parameters $d, rho, sigma$. One can directly use this to conduct the martingale coupling test without having to resimulate.
+    - **`src/adapted_mtgl/mtgl_test/multiD.py`** contains source codes for simulating the SE-MPD test statistic distribution. For mutivariate integration required to calculate the SE-MPD statistic, we support two methos:
+        - `nquad` which is a numerical solver supported by `scipy`.
+        - `mc` which supports monte carlo simulation to approximate the integral. This scales much more effectively and is to be preferred to `nquad` especially in high dimensions. 
+    - **`src/adapted_mtgl/mtgl_test/mtgl.py`** contains the source function for implementing the SE-MPD martingale coupling test.
 
