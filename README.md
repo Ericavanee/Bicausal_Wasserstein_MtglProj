@@ -32,7 +32,7 @@ payoff estimated by coniditioning on $S_0$.
     - **`synthetic_experiment.ipynb`** gives examples of conducting the multidimensional martingale coupling test using SE-MPD.
     - **`adapted_empirical_distance.ipynb`** explores the convergence property of SE-MPD in juxtaposition to the adapted empirical MPD.
     - **`nsde_calibration.ipynb`** gives examples on how one calibrates vanilla European option prices using the apartus given by [Gierjatowicz et. al.](https://arxiv.org/abs/2007.04154) and how one obtains the (market_price, payoff) couplings for the martingale coupling test to validate the efficacy of the option calibration procedure. 
-    - **`markov.ipynb`** gives examples of conducting mutlidimensional SE-MPD based martingale test on markov chain couplings
+    - **`markov.ipynb`** gives examples of conducting mutlidimensional SE-MPD based martingale test on markov chain couplings.
 - **`src`**: `python` source scripts for running the martingale test. We highlight a few items.
     - **`src/adapted_mtgl/mtgl_test/simulated_data`** contains pre-simulated SE-MPD test statistic distribution for given parameters $d, \rho, \sigma$. One can directly use this to conduct the martingale coupling test without having to resimulate.
     - **`src/adapted_mtgl/mtgl_test/multiD.py`** contains source codes for simulating the SE-MPD test statistic distribution. For mutivariate integration required to calculate the SE-MPD statistic, we support two methos:
