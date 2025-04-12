@@ -39,7 +39,9 @@ payoff estimated by coniditioning on $S_0$.
         - `nquad` which is a numerical solver supported by `scipy`.
         - `mc` which supports monte carlo simulation to approximate the integral. This scales much more effectively and is to be preferred to `nquad` especially in high dimensions. 
     - **`src/adapted_mtgl/mtgl_test/mtgl.py`** contains the source function for implementing the SE-MPD martingale coupling test.
-    - **`src/adapted_mtgl/mtgl_test/ada_emp_dist.py`** implements the adapted empirical measure and the corresponding adapted empirical MPD. It also implements functionalities that compare the convergence behavior between the adapted empirical MPD and our SE-MPD.
+    - **`src/adapted_mtgl/mtgl_test/ada_emp_dist.py`** implements the adapted empirical measure and the corresponding adapted empirical MPD. It also implements functionalities that compare the convergence behavior between the adapted empirical MPD and our SE-MPD. For the adapted empirical measure, we support two methods of calculation:
+        - `grid`: this method follows the original instructions in Definition 1.2 of paper [Estimating processes in adapted Wasserstein distance]{https://arxiv.org/abs/2002.07261} using a predefined fixed grid to define the centers. Empirical samples are then grouped to these centers via nearest-neighbor assignment using a `KDTree`.
+        -  `kmeans`: this method is forked from the implementation of the adapted empirical measure in Github repo `[aotnumerics]{https://github.com/stephaneckstein/aotnumerics}`, which uses k-means clustering from `sklearn` to define the centers dynamically. 
 - **`data`**: cotains the call prices used in the neural SDE calibration example as well as the calibratoed stock trajectories for both Local Stochastic Volatility Model (LSV) and the Loal Volatility (LV) model. One can also calibrate these themselves by running `scripts/run_adapted_LSV.py` and/or `scripts/run_adapted_LV.py`.
 - **`applications`**: contains source codes implementing the two applications discussed in Section 4.3 of our paper: markov and nsde. Tutorials to run both are contained in the folder `demos`.
 
