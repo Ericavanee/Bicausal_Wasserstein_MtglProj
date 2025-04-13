@@ -78,10 +78,10 @@ class SmoothedMpdParams:
         default=42,
         metadata={"help": "Random seed for Monte Carlo simulation (used only if method='mc')."}
     )
-    n_trials: int = field(
-        default=1,
-        metadata={"help": "Number of trials to average MPD over (for statistical robustness)."}
-    )
+    # n_trials: int = field(
+    #     default=1,
+    #     metadata={"help": "Number of trials to average MPD over (for statistical robustness)."}
+    # )
 
     def __post_init__(self):
         if self.method == 'mc':
@@ -95,7 +95,7 @@ class AdaptedMpdParams:
     test_data: str = field(metadata={"help": "Path to .npz file containing both X and Y arrays, each of shape (n, d)."})
     method: str = field(default='grid', metadata={"help": "Method for calculating the center: choose 'grid' for using a fixed grid as reference, or 'kmeans' which uses KMeans clustering."})
     gamma: int = field(default=1, metadata={"help": "Gamma parameter (must be greater than or equal to 1)."})
-    n_trials: int = field(default=1, metadata={"help": "Number of trials to average MPD over (for statistical robustness)."})
+    #n_trials: int = field(default=1, metadata={"help": "Number of trials to average MPD over (for statistical robustness)."})
 
     def __post_init__(self):
         if self.method not in ['grid', 'kmeans']:
