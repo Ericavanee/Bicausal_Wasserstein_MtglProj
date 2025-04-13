@@ -224,15 +224,20 @@ def compute_adapted_mpd(X, Y, method = 'grid', gamma=1):
     return 2 ** (1 - gamma) * mpd_sum / n
 
 
-def plot_adapted_mpd_convergence(num_ls, type = 'adapted', method = 'grid', d=1, gamma=1, seed=0, mpd_vals = None):
+def plot_adapted_mpd_convergence(num_ls, type='adapted', method='grid', d=1, gamma=1, seed=0, mpd_vals=None, n_trials=1):
     if not mpd_vals:
         mpd_vals = []
         for n in tqdm(num_ls, desc="Computing MPD"):
-            X, Y = generate_uniform_martingale_coupling(n_samples=n, d=d, seed=seed)
-            if d==1:
-                X, Y = X.reshape(-1, 1), Y.reshape(-1, 1)
-            mpd = compute_adapted_mpd(X, Y, method = method, gamma=gamma)
-            mpd_vals.append(mpd)
+            trial_mpd_vals = []
+            for t in range(n_trials):
+                trial_seed = seed + t  # ensure different seeds for each trial
+                X, Y = generate_uniform_martingale_coupling(n_samples=n, d=d, seed=trial_seed)
+                if d == 1:
+                    X, Y = X.reshape(-1, 1), Y.reshape(-1, 1)
+                mpd = compute_adapted_mpd(X, Y, method=method, gamma=gamma)
+                trial_mpd_vals.append(mpd)
+            avg_mpd = np.mean(trial_mpd_vals)
+            mpd_vals.append(avg_mpd)
 
     # Linear plot
     plt.figure(figsize=(6, 4))
@@ -248,24 +253,23 @@ def plot_adapted_mpd_convergence(num_ls, type = 'adapted', method = 'grid', d=1,
     plt.figure(figsize=(6, 4))
     plt.loglog(num_ls, mpd_vals, marker='o')
     ref_x = np.array(num_ls)
-    #smoothed mpd reate
     ref_y = ref_x ** (-0.5) * mpd_vals[0] / (num_ls[0] ** -0.5)
     ref_line1, = plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/2}$ reference")
     lines.append(ref_line1)
+
     if type == 'adapted':
-        # Reference line for n^{-1/(2d)}
-        if d==1:
-            rate = -1 /3 # -1/(T+1)
+        if d == 1:
+            rate = -1 / 3
             ref_y = ref_x ** rate * mpd_vals[0] / (num_ls[0] ** rate)
             ref_line2, = plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/(T+1)}$ reference")
             lines.append(ref_line2)
-        if d==2:
-            rate = -1 /4 # -1/(2T)
-            ref_y = (ref_x ** (-1/4)) * np.log(ref_x + 1)
-            ref_y *= mpd_vals[0] / ((num_ls[0] ** (-1/4)) * np.log(num_ls[0] + 1))  # Normalize to match scale
+        elif d == 2:
+            rate = -1 / 4
+            ref_y = (ref_x ** rate) * np.log(ref_x + 1)
+            ref_y *= mpd_vals[0] / ((num_ls[0] ** rate) * np.log(num_ls[0] + 1))
             ref_line2, = plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/4} \log(n+1)$ reference")
             lines.append(ref_line2)
-        if d >= 3:
+        elif d >= 3:
             rate = -1 / (2 * d)
             ref_y = ref_x ** rate * mpd_vals[0] / (num_ls[0] ** rate)
             ref_line2, = plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/2d}$ reference")
@@ -280,10 +284,14 @@ def plot_adapted_mpd_convergence(num_ls, type = 'adapted', method = 'grid', d=1,
 
     return mpd_vals
 
-def plot_mpd_convergence_comparison(num_ls, method = 'grid', d=1, rho=5, sigma=1, lbd=-50, ubd=50, gamma=1, seed=42, mpd_vals=None, smoothed_mpd_vals=None):
+def plot_mpd_convergence_comparison(num_ls, method='grid', d=1, rho=5, sigma=1,
+                                    lbd=-50, ubd=50, gamma=1, seed=42,
+                                    mpd_vals=None, smoothed_mpd_vals=None,
+                                    n_trials=1):
     """
     Compare convergence of adapted MPD vs smoothed MPD across sample sizes.
     Allows reuse of existing results if provided.
+    Supports averaging over multiple trials per sample size.
     """
     recompute_mpd = mpd_vals is None or len(mpd_vals) != len(num_ls)
     recompute_smooth = smoothed_mpd_vals is None or len(smoothed_mpd_vals) != len(num_ls)
@@ -294,22 +302,36 @@ def plot_mpd_convergence_comparison(num_ls, method = 'grid', d=1, rho=5, sigma=1
         smoothed_mpd_vals = []
 
     if recompute_mpd or recompute_smooth:
-        for idx, n in enumerate(tqdm(num_ls, desc="Computing MPD")):
-            X, Y = generate_uniform_martingale_coupling(n_samples=n, d=d, seed=seed)
+        for idx, n in enumerate(tqdm(num_ls, desc="Computing MPDs")):
+            trial_mpd_list = []
+            trial_smooth_list = []
+
+            for t in range(n_trials):
+                trial_seed = seed + t
+                X, Y = generate_uniform_martingale_coupling(n_samples=n, d=d, seed=trial_seed)
+
+                if recompute_smooth:
+                    params = get_params(rho, X, Y, sigma)
+                    smoothed_mpd = mtgl_proj_mc(params, lbd, ubd)
+                    trial_smooth_list.append(smoothed_mpd)
+
+                if recompute_mpd:
+                    if d == 1:
+                        X, Y = X.reshape(-1, 1), Y.reshape(-1, 1)
+                    mpd = compute_adapted_mpd(X, Y, method=method, gamma=gamma)
+                    trial_mpd_list.append(mpd)
+
             if recompute_smooth:
-                params = get_params(rho, X, Y, sigma)
-                smoothed_mpd = mtgl_proj_mc(params, lbd, ubd)
-                smoothed_mpd_vals.append(smoothed_mpd)
+                smoothed_mpd_vals.append(np.mean(trial_smooth_list))
             if recompute_mpd:
-                if d ==1:
-                    X, Y = X.reshape(-1, 1), Y.reshape(-1, 1)
-                mpd = compute_adapted_mpd(X, Y, method, gamma=gamma)
-                mpd_vals.append(mpd)
+                mpd_vals.append(np.mean(trial_mpd_list))
 
     # Linear plot
     plt.figure(figsize=(6, 4))
-    if mpd_vals: plt.plot(num_ls, mpd_vals, marker='o', label='Adapted MPD')
-    if smoothed_mpd_vals: plt.plot(num_ls, smoothed_mpd_vals, marker='^', label='Smoothed MPD')
+    if mpd_vals:
+        plt.plot(num_ls, mpd_vals, marker='o', label='Adapted MPD')
+    if smoothed_mpd_vals:
+        plt.plot(num_ls, smoothed_mpd_vals, marker='^', label='Smoothed MPD')
     plt.xlabel("Number of Samples")
     plt.ylabel("MPD Value")
     plt.title("Convergence of Adapted MPD vs Smoothed MPD")
@@ -319,27 +341,26 @@ def plot_mpd_convergence_comparison(num_ls, method = 'grid', d=1, rho=5, sigma=1
 
     # Log-log plot
     plt.figure(figsize=(6, 4))
-    if mpd_vals: plt.loglog(num_ls, mpd_vals, marker='o', label='Adapted MPD')
-    if smoothed_mpd_vals: plt.loglog(num_ls, smoothed_mpd_vals, marker='^', label='Smoothed MPD')
+    if mpd_vals:
+        plt.loglog(num_ls, mpd_vals, marker='o', label='Adapted MPD')
+    if smoothed_mpd_vals:
+        plt.loglog(num_ls, smoothed_mpd_vals, marker='^', label='Smoothed MPD')
 
     if mpd_vals:
         ref_x = np.array(num_ls)
         ref_y = ref_x ** (-0.5) * mpd_vals[0] / (num_ls[0] ** -0.5)
         plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/2}$ reference")
 
-    # Reference line for n^{-1/(2d)}
-    if mpd_vals:
-        ref_x = np.array(num_ls)
-        if d==1:
-            rate = -1 /3 # -1/(T+1)
+        if d == 1:
+            rate = -1 / 3
             ref_y = ref_x ** rate * mpd_vals[0] / (num_ls[0] ** rate)
             plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/(T+1)}$ reference")
-        if d==2:
-            rate = -1 /4 # -1/(2T)
-            ref_y = (ref_x ** (-1/4)) * np.log(ref_x + 1)
-            ref_y *= mpd_vals[0] / ((num_ls[0] ** (-1/4)) * np.log(num_ls[0] + 1))  # Normalize to match scale
+        elif d == 2:
+            rate = -1 / 4
+            ref_y = (ref_x ** rate) * np.log(ref_x + 1)
+            ref_y *= mpd_vals[0] / ((num_ls[0] ** rate) * np.log(num_ls[0] + 1))
             plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/4} \log(n+1)$ reference")
-        if d >= 3:
+        elif d >= 3:
             rate = -1 / (2 * d)
             ref_y = ref_x ** rate * mpd_vals[0] / (num_ls[0] ** rate)
             plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/2d}$ reference")
