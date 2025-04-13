@@ -272,7 +272,7 @@ def plot_adapted_mpd_convergence(num_ls, type='adapted', method='grid', d=1, gam
         elif d >= 3:
             rate = -1 / (2 * d)
             ref_y = ref_x ** rate * mpd_vals[0] / (num_ls[0] ** rate)
-            ref_line2, = plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/2d}$ reference")
+            ref_line2, = plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/(2d)}$ reference")
             lines.append(ref_line2)
 
     plt.xlabel("log(Number of Samples)")
@@ -363,7 +363,7 @@ def plot_mpd_convergence_comparison(num_ls, method='grid', d=1, rho=5, sigma=1,
         elif d >= 3:
             rate = -1 / (2 * d)
             ref_y = ref_x ** rate * mpd_vals[0] / (num_ls[0] ** rate)
-            plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/2d}$ reference")
+            plt.loglog(ref_x, ref_y, linestyle='--', label=r"$n^{-1/(2d)}$ reference")
 
     plt.xlabel("log(Number of Samples)")
     plt.ylabel("log(MPD Value)")
