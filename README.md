@@ -66,6 +66,18 @@ You can install the dependencies using either `poetry` (recommended for developm
    poetry shell
     ```
 
+### Option 2: Using pip and requirements.txt
+
+1. **Create a virtual environment**:
+    ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
+2. **Install required packages**
+    ```bash
+   pip install -r requirements.txt
+    ```
+
 # Citation
 
 If you find this repository helpful in your research or applications, please consider citing our paper:
