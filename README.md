@@ -44,6 +44,28 @@ Given a collection of multidimensional pairs $\{(X_i,Y_i)\}_{1 \leq i\leq n}$, w
 - **`data`**: cotains the call prices used in the neural SDE calibration example as well as the calibratoed stock trajectories for both Local Stochastic Volatility Model (LSV) and the Loal Volatility (LV) model. One can also calibrate these themselves by running `scripts/run_adapted_LSV.py` and/or `scripts/run_adapted_LV.py`.
 - **`applications`**: contains source codes implementing the two applications discussed in Section 4.3 of our paper: markov and nsde. Tutorials to run both are contained in the folder `demos`.
 
+## Setup
+
+You can install the dependencies using either `poetry` (recommended for development) or `pip` (if you prefer using a virtual environment manually).
+
+### Option 1: Using Poetry (Recommended)
+
+1. **Install Poetry**:
+
+   ```bash
+   pip install poetry
+    ```
+2. **Clone the repository**:
+    ```bash
+   git clone https://github.com/Ericavanee/Bicausal_Wasserstein_MtglProj.git
+   cd Bicausal_Wasserstein_MtglProj
+    ```
+3. **Install dependencies and activate virtual environment**:
+    ```bash
+   poetry install
+   poetry shell
+    ```
+
 # Citation
 
 If you find this repository helpful in your research or applications, please consider citing our paper:
