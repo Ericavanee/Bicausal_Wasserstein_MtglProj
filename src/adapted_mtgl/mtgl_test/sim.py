@@ -41,7 +41,8 @@ def post_smooth_density(xb,yb,x,y,w_rv): # w_rv is a scipy.stats.multivariate_no
     n = len(x)
     sum_ls = []
     for i in range(n):
-        emp = [xb-x[i],yb-y[i]]
+        #emp = [xb-x[i],yb-y[i]]
+        emp = np.array([np.squeeze(xb - x[i]), np.squeeze(yb - y[i])])
         temp = w_rv.pdf(emp)
         sum_ls.append(temp)
     return (1/n)*sum(sum_ls)
@@ -57,7 +58,8 @@ def plot_smooth_density(x,y,p,lbd,ubd,w_rv):
     for i in range(p):
         row_ls = []
         for j in range(p):
-            row_ls.append(post_smooth_density(X[i][j],Y[i][j],x,y,w_rv))
+            result = post_smooth_density(X[i][j],Y[i][j],x,y,w_rv)
+            row_ls.append(result)
         Z.append(row_ls)
     Z = np.array(Z).reshape(p,p)
         
