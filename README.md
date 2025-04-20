@@ -7,6 +7,15 @@ The *bicausal* or *adapted* Wasserstein martingale projection is a novel method 
 Given a collection of multidimensional pairs $\{(X_i,Y_i)\}_{1 \leq i\leq n}$, we study the problem of projecting the associated suitably smoothed empirical measure onto the space of martingale couplings (i.e. distributions satisfying $\mathbb{E}[Y|X]=X$) using the adapted Wasserstein distance. We call the resulting distance the *smoothed empirical martingale projection distance* (SE-MPD), for which we obtain an explicit characterization. We also show that the space of martingale couplings remains invariant under the smoothing operation. We study the asymptotic limit of the SE-MPD, which converges at a parametric rate as the sample size increases if the pairs are either i.i.d.~or satisfy appropriate mixing assumptions. Additional finite-sample results are also investigated. Using these results, we introduce a novel consistent martingale coupling hypothesis test, which we apply to test the existence of arbitrage opportunities in recently introduced neural network-based generative models for asset pricing calibration.
 
 <p align="center">
+  <img src="documentation/smoothed1dconvg.png" width="48%" />
+  <img src="documentation/smoothed3dconvg.png" width="48%" />
+</p>
+
+<p align="center">
+  <em>Figure:</em> Log-log convergence with the fitted regression line of the smoothed MPD (<em>ours</em>) for <em>d = 1</em> (left) and <em>d = 3</em> (right), averaged across 10 sampling trials (random seeds), using Unif([-0.5, 0.5])<sup>d</sup> increments.
+</p>
+
+<p align="center">
   <img src="documentation/loglog1d.png" width="48%" />
   <img src="documentation/loglog3d.png" width="48%" />
 </p>
@@ -14,7 +23,7 @@ Given a collection of multidimensional pairs $\{(X_i,Y_i)\}_{1 \leq i\leq n}$, w
 <p align="center">
   <em>Figure:</em> Log-log convergence comparison between the adapted MPD (based on the 
   <a href="https://arxiv.org/abs/2002.07261" target="_blank"><em>adapted empirical measure</em></a>) 
-  and the smoothed MPD (<em>ours</em>) for <em>d = 1</em> (left) and <em>d = 3</em> (right) averaged across 10 trials (random seeds), using Unif([-0.5, 0.5])<sup>d</sup> increments.
+  and the smoothed MPD (<em>ours</em>) for <em>d = 1</em> (left) and <em>d = 3</em> (right), averaged across 10 sampling trials (random seeds), using Unif([-0.5, 0.5])<sup>d</sup> increments.
 </p>
 
 # Repo Structure
