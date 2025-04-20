@@ -12,7 +12,7 @@ Given a collection of multidimensional pairs $\{(X_i,Y_i)\}_{1 \leq i\leq n}$, w
 </p>
 
 <p align="center">
-  <em>Figure:</em> Log-log convergence with the fitted regression line of the smoothed MPD (<em>ours</em>) for <em>d = 1</em> (left) and <em>d = 3</em> (right), averaged across 10 sampling trials (random seeds), using Unif([-0.5, 0.5])<sup>d</sup> increments.
+  <em>Figure:</em> Log-log convergence of the smoothed MPD (<em>ours</em>) for <em>d = 1</em> (left) and <em>d = 3</em> (right) averaged across 10 sampling trials (random seeds) with fitted regression lines, using Unif([-0.5, 0.5])<sup>d</sup> increments.
 </p>
 
 <p align="center">
