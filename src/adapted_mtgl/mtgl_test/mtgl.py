@@ -97,28 +97,6 @@ def mtgl_test(params, lbd, ubd, conf, result, display = True): # nquad version
             print(f"Reject null hypothesis with {conf}% confidence.")
         return proj, False
 
-    
-
-# Monte Carlo projection estimate to imporvie high dimensional integration complexity
-# def mtgl_proj_mc(params, lbd, ubd, n_samples=1000, seed=0, disable_tqdm=False):
-#     np.random.seed(seed)
-#     x = params['x']
-#     d = x.shape[1] if x.ndim > 1 else 1
-#     volume = (ubd - lbd) ** d
-
-#     a_samples = np.random.uniform(lbd, ubd, size=(n_samples, d))
-
-#     if not disable_tqdm:
-#         integrand_vals = np.array([
-#             integrand(a, params) for a in tqdm(a_samples, desc="Evaluating integrand...")
-#         ])
-#     if disable_tqdm:
-#         integrand_vals = np.array([
-#             integrand(a, params) for a in a_samples
-#         ])
-
-#     mc_estimate = volume * np.mean(integrand_vals)
-#     return mc_estimate
 
 def mtgl_proj_mc(params, lbd, ubd, n_samples=1000, seed=0, disable_tqdm=False, n_jobs=-1):
     """
